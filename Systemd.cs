@@ -9,7 +9,7 @@ namespace Botwinder.Service
 {
 	public class Systemd
 	{
-		public struct Unit
+		public class Unit
 		{
 			public string Name;
 			public string Description;
@@ -37,23 +37,20 @@ namespace Botwinder.Service
 
 		public static async Task<string> GetServiceStatus(string serviceName)
 		{
-			StringBuilder statusString = new StringBuilder();
+			string statusString = "";
 			using( Connection connection = new Connection(Address.System) )
 			{
 				await connection.ConnectAsync();
 				IManager systemd = connection.CreateProxy<ISystemd>("org.freedesktop.systemd1", "/org/freedesktop/systemd1") as IManager;
 				Unit[] units = await systemd.ListUnitsAsync();
-				for( int i = 0; i < units.Length; i++ )
-				{
-					if( units[i].Name != serviceName )
-						continue;
 
-					statusString.AppendFormat("**Service Name:** `{0}`\n" +
-					                          "**Status:** `{1}`", units[i].Name, units[i].ActiveState);
-				}
+				Unit unit = units.FirstOrDefault(u => u.Name == serviceName);
+				if( unit != null )
+					statusString = string.Format("**Service Name:** `{0}`\n" +
+												 "**Status:** `{1}`", unit.Name, unit.ActiveState);
 			}
 
-			return statusString.Length == 0 ? "Service not found." : statusString.ToString();
+			return string.IsNullOrWhiteSpace(statusString) ? "Service not found." : statusString.ToString();
 		}
 
 		public static async Task<bool> RestartService(string serviceName)
