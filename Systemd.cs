@@ -9,7 +9,7 @@ namespace Botwinder.Service
 {
 	public class Systemd
 	{
-		public class Unit
+		public struct Unit
 		{
 			public string Name;
 			public string Description;
@@ -44,10 +44,9 @@ namespace Botwinder.Service
 				IManager systemd = connection.CreateProxy<ISystemd>("org.freedesktop.systemd1", "/org/freedesktop/systemd1") as IManager;
 				Unit[] units = await systemd.ListUnitsAsync();
 
-				Unit unit = units.FirstOrDefault(u => u.Name == serviceName);
-				statusString = unit == null ? "Service not found." :
-					string.Format("**Service Name:** `{0}`\n" +
-								  "**Status:** `{1}`", unit.Name, unit.ActiveState);
+				Unit unit = units.First(u => u.Name == serviceName);
+				statusString = string.Format("**Service Name:** `{0}`\n" +
+											 "**Status:** `{1}`", unit.Name, unit.ActiveState);
 			}
 
 			return statusString;

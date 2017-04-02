@@ -39,16 +39,23 @@ namespace Botwinder.Service
 			try
 			{
 				string response = "";
-				if( socketMessage.Content.StartsWith("!serviceStatus") )
+				try
 				{
-					Console.WriteLine("Executing !serviceStatus");
-					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus(Config.ServiceName));
+					if( socketMessage.Content.StartsWith("!serviceStatus") )
+					{
+						Console.WriteLine("Executing !serviceStatus");
+						response = await Systemd.GetServiceStatus(Config.ServiceName);
+					}
+					else if( socketMessage.Content.StartsWith("!serviceRestart") )
+					{
+						Console.WriteLine("Executing !serviceRestart");
+						response = "**Restart successful:** `" + await Systemd.RestartService(Config.ServiceName) + "`";
+					}
 				}
-				else if( socketMessage.Content.StartsWith("!serviceRestart") )
+				catch( Exception e )
 				{
-					Console.WriteLine("Executing !serviceRestart");
-					await socketMessage.Channel.SendMessageAsync("**Restart successful:** `" +
-					                                             await Systemd.RestartService(Config.ServiceName) + "`");
+					response = "Systemd haz spit out an error: \n  " + e.Message;
+					LogException(e, socketMessage.Author.Username + socketMessage.Author.Discriminator + ": " + socketMessage.Content);
 				}
 
 				if( !string.IsNullOrWhiteSpace(response) )
@@ -56,10 +63,19 @@ namespace Botwinder.Service
 			}
 			catch( Exception e )
 			{
-				Console.WriteLine("Exception: " + e.Message);
-				Console.WriteLine("Stack: " + e.StackTrace);
-				Console.WriteLine(".......exception: " + e.Message);
+				LogException(e, socketMessage.Author.Username + socketMessage.Author.Discriminator + ": " + socketMessage.Content);
 			}
+		}
+
+		public void LogException(Exception e, string data = "")
+		{
+			Console.WriteLine("Exception: " + e.Message);
+
+			if( string.IsNullOrWhiteSpace(data) )
+				Console.WriteLine("Data: " + data);
+
+			Console.WriteLine("Stack: " + e.StackTrace);
+			Console.WriteLine(".......exception: " + e.Message);
 		}
 	}
 }
