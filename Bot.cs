@@ -42,7 +42,7 @@ namespace Botwinder.Service
 				if( socketMessage.Content.StartsWith("!serviceStatus") )
 				{
 					Console.WriteLine("Executing !serviceStatus");
-					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus(Config.ServiceName);
+					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus(Config.ServiceName));
 				}
 				else if( socketMessage.Content.StartsWith("!serviceRestart") )
 				{
