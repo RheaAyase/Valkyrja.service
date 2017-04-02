@@ -38,7 +38,7 @@ namespace Botwinder.Service
 		public static async Task<string> GetServiceStatus(string serviceName)
 		{
 			StringBuilder statusString = new StringBuilder();
-			using( var connection = new Connection(Address.Session) )
+			using( Connection connection = new Connection(Address.System) )
 			{
 				await connection.ConnectAsync();
 				IManager systemd = connection.CreateProxy<ISystemd>("org.freedesktop.systemd1", "/org/freedesktop/systemd1") as IManager;
@@ -53,9 +53,7 @@ namespace Botwinder.Service
 				}
 			}
 
-			if( statusString.Length == 0 )
-				return "Service not found.";
-			return statusString.ToString();
+			return statusString.Length == 0 ? "Service not found." : statusString.ToString();
 		}
 
 		public static async Task<bool> RestartService(string serviceName)

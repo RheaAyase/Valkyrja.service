@@ -42,13 +42,13 @@ namespace Botwinder.Service
 				if( socketMessage.Content.StartsWith("!serviceStatus") )
 				{
 					Console.WriteLine("Executing !serviceStatus");
-					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus("botwinder"));
+					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus(Config.ServiceName);
 				}
 				else if( socketMessage.Content.StartsWith("!serviceRestart") )
 				{
 					Console.WriteLine("Executing !serviceRestart");
 					await socketMessage.Channel.SendMessageAsync("**Restart successful:** `" +
-					                                             await Systemd.RestartService("botwinder") + "`");
+					                                             await Systemd.RestartService(Config.ServiceName) + "`");
 				}
 
 				if( !string.IsNullOrWhiteSpace(response) )

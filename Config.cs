@@ -15,6 +15,7 @@ namespace Botwinder.Service
 
 		public string BotToken = "";
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
+		public string ServiceName = "botwinder.service";
 
 		private Config(){}
 		public static Config Load()
