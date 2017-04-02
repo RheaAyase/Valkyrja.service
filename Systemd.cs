@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
 using System.Threading.Tasks;
 using Tmds.DBus;
 
@@ -27,6 +25,7 @@ namespace Botwinder.Service
 		public interface IManager: IDBusObject
 		{
 			Task<Unit[]> ListUnitsAsync();
+			Task RestartUnitAsync(string name, string mode);
 		}
 
 		[DBusInterface("org.freedesktop.systemd1")]
@@ -46,7 +45,7 @@ namespace Botwinder.Service
 
 				Unit unit = units.First(u => u.Name == serviceName);
 				statusString = string.Format("**Service Name:** `{0}`\n" +
-											 "**Status:** `{1}`", unit.Name, unit.ActiveState);
+											 "**Status:** `{1}` - `{2}`", unit.Name, unit.ActiveState, unit.SubState);
 			}
 
 			return statusString;
@@ -54,7 +53,13 @@ namespace Botwinder.Service
 
 		public static async Task<bool> RestartService(string serviceName)
 		{
-			throw new NotImplementedException();
+			using( Connection connection = new Connection(Address.System) )
+			{
+				await connection.ConnectAsync();
+				IManager systemd = connection.CreateProxy<ISystemd>("org.freedesktop.systemd1", "/org/freedesktop/systemd1") as IManager;
+				await systemd.RestartUnitAsync(serviceName, "fail");
+			}
+			return true;
 		}
 	}
 }
