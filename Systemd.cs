@@ -45,12 +45,12 @@ namespace Botwinder.Service
 				Unit[] units = await systemd.ListUnitsAsync();
 
 				Unit unit = units.FirstOrDefault(u => u.Name == serviceName);
-				if( unit != null )
-					statusString = string.Format("**Service Name:** `{0}`\n" +
-												 "**Status:** `{1}`", unit.Name, unit.ActiveState);
+				statusString = unit == null ? "Service not found." :
+					string.Format("**Service Name:** `{0}`\n" +
+								  "**Status:** `{1}`", unit.Name, unit.ActiveState);
 			}
 
-			return string.IsNullOrWhiteSpace(statusString) ? "Service not found." : statusString.ToString();
+			return statusString;
 		}
 
 		public static async Task<bool> RestartService(string serviceName)
