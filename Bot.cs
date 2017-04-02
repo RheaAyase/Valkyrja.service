@@ -36,18 +36,30 @@ namespace Botwinder.Service
 			if( !Config.AdminIDs.Contains(socketMessage.Author.Id) )
 				return;
 
-			string response = "";
-			if( socketMessage.Content.StartsWith("!serviceStatus") )
+			try
 			{
-				await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus("botwinder"));
-			}
-			else if( socketMessage.Content.StartsWith("!serviceRestart") )
-			{
-				await socketMessage.Channel.SendMessageAsync("**Restart successful:** `" + await Systemd.RestartService("botwinder") + "`");
-			}
+				string response = "";
+				if( socketMessage.Content.StartsWith("!serviceStatus") )
+				{
+					Console.WriteLine("Executing !serviceStatus");
+					await socketMessage.Channel.SendMessageAsync(await Systemd.GetServiceStatus("botwinder"));
+				}
+				else if( socketMessage.Content.StartsWith("!serviceRestart") )
+				{
+					Console.WriteLine("Executing !serviceRestart");
+					await socketMessage.Channel.SendMessageAsync("**Restart successful:** `" +
+					                                             await Systemd.RestartService("botwinder") + "`");
+				}
 
-			if( !string.IsNullOrWhiteSpace(response) )
-				await socketMessage.Channel.SendMessageAsync(response);
+				if( !string.IsNullOrWhiteSpace(response) )
+					await socketMessage.Channel.SendMessageAsync(response);
+			}
+			catch( Exception e )
+			{
+				Console.WriteLine("Exception: " + e.Message);
+				Console.WriteLine("Stack: " + e.StackTrace);
+				Console.WriteLine(".......exception: " + e.Message);
+			}
 		}
 	}
 }
