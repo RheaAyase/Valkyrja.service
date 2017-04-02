@@ -59,7 +59,7 @@ namespace Botwinder.Service
 				IManager systemd = connection.CreateProxy<ISystemd>("org.freedesktop.systemd1", "/org/freedesktop/systemd1") as IManager;
 				await systemd.RestartUnitAsync(serviceName, "fail");
 			}
-			return true;
+			return true; //TODO: actually read returned job...
 		}
 	}
 }
