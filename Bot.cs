@@ -42,12 +42,12 @@ namespace Botwinder.Service
 				{
 					if( socketMessage.Content.StartsWith("!serviceStatus") )
 					{
-						Console.WriteLine("Executing !serviceStatus");
+						Console.WriteLine("Executing !serviceStatus | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
 						response = await Systemd.GetServiceStatus(Config.ServiceName);
 					}
 					else if( socketMessage.Content.StartsWith("!serviceRestart") )
 					{
-						Console.WriteLine("Executing !serviceRestart");
+						Console.WriteLine("Executing !serviceRestart | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
 						response = "**Restart successful:** `" + await Systemd.RestartService(Config.ServiceName) + "`";
 					}
 				}
