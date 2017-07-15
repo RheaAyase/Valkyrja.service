@@ -1,21 +1,35 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Discord;
 
 namespace Botwinder.Service
 {
     public class Program
     {
+	    public static SkywinderClient Skywinder = null;
+
         public static void Main(string[] args)
         {
-	        Console.WriteLine("Botwinder.Service: Connecting...");
+	        Connect();
 
-	        BotClient client = new BotClient();
-	        client.Connect().Wait();
+			while( true )
+			{
+				Task.Delay(300000).Wait();
+				if( Skywinder.Client.ConnectionState == ConnectionState.Disconnected )
+					Connect();
+			}
+		}
 
-	        Console.WriteLine("Botwinder.Service: Connected.");
+	    public static void Connect()
+	    {
+		    Console.WriteLine("Botwinder.Service: Connecting...");
 
-			while(true)
-		        Task.Delay(300000).Wait();
-        }
+		    if( Skywinder != null )
+			    Skywinder.Client.Dispose();
+		    Skywinder = new SkywinderClient();
+		    Skywinder.Connect().Wait();
+
+		    Console.WriteLine("Botwinder.Service: Connected.");
+	    }
     }
 }

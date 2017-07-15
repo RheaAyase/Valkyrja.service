@@ -14,8 +14,9 @@ namespace Botwinder.Service
 		public const int MessageCharacterLimit = 2000;
 
 		public string BotToken = "";
+		public string Prefix = "!";
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
-		public string ServiceName = "botwinder.service";
+		public string[] ServiceNames = { "botwinder", "coriolis" };
 
 		private Config(){}
 		public static Config Load()
