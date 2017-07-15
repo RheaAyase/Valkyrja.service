@@ -44,8 +44,8 @@ namespace Botwinder.Service
 				Unit[] units = await systemd.ListUnitsAsync();
 
 				Unit unit = units.First(u => u.Name == serviceName);
-				statusString = string.Format("**Service Name:** `{0}`\n" +
-											 "**Status:** `{1}` - `{2}`", unit.Name, unit.ActiveState, unit.SubState);
+				statusString = string.Format("Service Name: `{0}`\n" +
+											 "Status: `{1}` - `{2}`", unit.Name, unit.ActiveState, unit.SubState);
 			}
 
 			return statusString;

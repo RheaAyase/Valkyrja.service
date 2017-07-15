@@ -89,18 +89,24 @@ namespace Botwinder.Service
 				switch(commandString) //TODO: Replace by Botwinder's command handling...
 				{
 					case "serviceStatus":
-						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage) )
+						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
+						{
 							response = "Invalid parameter - service name";
+							break;
+						}
 
 						Console.WriteLine("Executing !serviceStatus "+ trimmedMessage +" | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
-						response = await Systemd.GetServiceStatus(trimmedMessage);
+						response = await Systemd.GetServiceStatus(trimmedMessage + ".service");
 						break;
 					case "serviceRestart":
-						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage) )
+						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
+						{
 							response = "Invalid parameter - service name";
+							break;
+						}
 
 						Console.WriteLine("Executing !serviceRestart "+ trimmedMessage +" | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
-						response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage) + "`";
+						response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
 						break;
 					default:
 						return;
