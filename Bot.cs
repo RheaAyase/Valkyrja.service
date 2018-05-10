@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Rest;
 using Discord.WebSocket;
+using Botwinder.entities;
 
 using guid = System.UInt64;
 
@@ -14,6 +18,8 @@ namespace Botwinder.Service
 		internal readonly DiscordSocketClient Client = new DiscordSocketClient();
 		private  readonly Config Config = Config.Load();
 		private  readonly Regex RegexCommandParams = new Regex("\"[^\"]+\"|\\S+", RegexOptions.Compiled);
+		private CancellationTokenSource MainUpdateCancel;
+		private Task MainUpdateTask;
 
 		public SkywinderClient()
 		{
@@ -25,6 +31,76 @@ namespace Botwinder.Service
 		{
 			await this.Client.LoginAsync(TokenType.Bot, this.Config.BotToken).ConfigureAwait(false);
 			await this.Client.StartAsync().ConfigureAwait(false);
+
+			if( this.MainUpdateTask == null )
+			{
+				this.MainUpdateCancel = new CancellationTokenSource();
+				this.MainUpdateTask = Task.Factory.StartNew(MainUpdate, this.MainUpdateCancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+			}
+		}
+
+//Update
+		private async Task MainUpdate()
+		{
+			while( !this.MainUpdateCancel.IsCancellationRequested )
+			{
+				DateTime frameTime = DateTime.UtcNow;
+
+				if( this.Client.ConnectionState != ConnectionState.Connected ||
+				    this.Client.LoginState != LoginState.LoggedIn )
+				{
+					await Task.Delay(10000);
+					continue;
+				}
+
+				try
+				{
+					//Update
+					SocketGuild mainGuild;
+					SocketTextChannel statusChannel;
+					RestUserMessage statusMessage;
+					if( (mainGuild = this.Client.GetGuild(this.Config.MainGuildId)) != null &&
+					    (statusChannel = mainGuild.GetTextChannel(this.Config.StatusChannelId)) != null &&
+					    (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(this.Config.StatusMessageId)) != null )
+					{
+						StringBuilder shards = new StringBuilder();
+						GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
+						Shard globalCount = new Shard();
+						foreach( Shard shard in dbContext.Shards )
+						{
+							globalCount.ServerCount += shard.ServerCount;
+							globalCount.UserCount += shard.UserCount;
+							globalCount.MemoryUsed += shard.MemoryUsed;
+							globalCount.ThreadsActive += shard.ThreadsActive;
+							globalCount.MessagesTotal += shard.MessagesTotal;
+							globalCount.MessagesPerMinute += shard.MessagesPerMinute;
+							globalCount.OperationsRan += shard.OperationsRan;
+							globalCount.OperationsActive += shard.OperationsActive;
+							globalCount.Disconnects += shard.Disconnects;
+
+							shards.AppendLine(shard.GetShortStatsString());
+						}
+
+						string message = "Server Status: <http://status.botwinder.info>\n\n" +
+						                 $"Global Allocated data Memory: `{globalCount.MemoryUsed} MB`\n" +
+						                 $"Global Threads: `{globalCount.ThreadsActive}`\n" +
+						                 $"Global Operations active: `{globalCount.OperationsActive}`\n" +
+						                 $"Global Disconnects: `{globalCount.Disconnects}`\n" +
+						                 $"\n**Shards: `{dbContext.Shards.Count()}`**\n\n" +
+						                 $"{shards.ToString()}";
+
+						dbContext.Dispose();
+						await statusMessage.ModifyAsync(m => m.Content = message);
+					}
+				}
+				catch(Exception exception)
+				{
+					LogException(exception, "--Update");
+				}
+
+				TimeSpan deltaTime = DateTime.UtcNow - frameTime;
+				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - deltaTime).TotalMilliseconds)));
+			}
 		}
 
 		private void GetCommandAndParams(string message, out string command, out string trimmedMessage, out string[] parameters)

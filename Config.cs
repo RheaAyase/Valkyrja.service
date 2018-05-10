@@ -15,6 +15,15 @@ namespace Botwinder.Service
 
 		public string BotToken = "";
 		public string Prefix = "!";
+		public float TargetFps = 0.03f;
+		public string Host = "127.0.0.1";
+		public string Port = "3306";
+		public string Username = "db_user";
+		public string Password = "db_password";
+		public string Database = "db_botwinder";
+		public guid MainGuildId = 155821059960995840;
+		public guid StatusChannelId = 444173726125260800;
+		public guid StatusMessageId = 444173873349525504;
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
 		public string[] ServiceNames = { "botwinder", "coriolis" };
 
@@ -40,6 +49,11 @@ namespace Botwinder.Service
 			string path = Path.Combine(Filename);
 			string json = JsonConvert.SerializeObject(this, Formatting.Indented);
 			File.WriteAllText(path, json);
+		}
+
+		public string GetDbConnectionString()
+		{
+			return $"server={this.Host};userid={this.Username};pwd={this.Password};port={this.Port};database={this.Database};sslmode=none;";
 		}
 	}
 }
