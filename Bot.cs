@@ -82,6 +82,7 @@ namespace Botwinder.Service
 						}
 
 						string message = "Server Status: <http://status.botwinder.info>\n\n" +
+						                 $"Last update: `{Utils.GetTimestamp(DateTime.UtcNow)}`\n" +
 						                 $"Global Allocated data Memory: `{globalCount.MemoryUsed} MB`\n" +
 						                 $"Global Threads: `{globalCount.ThreadsActive}`\n" +
 						                 $"Global Operations active: `{globalCount.OperationsActive}`\n" +
