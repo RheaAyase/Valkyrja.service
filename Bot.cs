@@ -21,6 +21,8 @@ namespace Botwinder.Service
 		private CancellationTokenSource MainUpdateCancel;
 		private Task MainUpdateTask;
 
+		private DateTime LastShardCleanupTime = DateTime.UtcNow;
+
 		public SkywinderClient()
 		{
 			this.Client.MessageReceived += ClientOnMessageReceived;
@@ -81,8 +83,15 @@ namespace Botwinder.Service
 							shards.AppendLine(shard.GetShortStatsString());
 						}
 
-						string message = "Server Status: <http://status.botwinder.info>\n\n" +
+						string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
+						string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5) \" %\"}'");
+						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0 \" %\"}'");
+						string message = "Server Status: <http://status.botwinder.info>\n" +
 						                 $"Last update: `{Utils.GetTimestamp(DateTime.UtcNow)}`\n" +
+						                 $"Memory usage: `{memoryUsed}`\n" +
+						                 $"CPU Load: `{cpuLoad}`\n" +
+						                 $"CPU0 Temp: `{cpuTemp[0]}`\n" +
+						                 $"CPU1 Temp: `{cpuTemp[1]}`\n\n" +
 						                 $"Global Allocated data Memory: `{globalCount.MemoryUsed} MB`\n" +
 						                 $"Global Threads: `{globalCount.ThreadsActive}`\n" +
 						                 $"Global Operations active: `{globalCount.OperationsActive}`\n" +
@@ -90,8 +99,21 @@ namespace Botwinder.Service
 						                 $"\n**Shards: `{dbContext.Shards.Count()}`**\n\n" +
 						                 $"{shards.ToString()}";
 
-						dbContext.Dispose();
 						await statusMessage.ModifyAsync(m => m.Content = message);
+
+
+						if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
+						{
+							this.LastShardCleanupTime = DateTime.UtcNow;
+							foreach( Shard shard in dbContext.Shards )
+							{
+								shard.TimeStarted = DateTime.MinValue;
+								shard.IsConnecting = false;
+							}
+						}
+
+						dbContext.SaveChanges();
+						dbContext.Dispose();
 					}
 				}
 				catch(Exception exception)
