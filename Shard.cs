@@ -113,8 +113,7 @@ namespace Botwinder.entities
 			       $"  Uptime: `{uptimeString}`\n" +
 			       $"  Allocated data Memory: `{this.MemoryUsed} MB`\n" +
 			       $"  Threads: `{this.ThreadsActive}`\n" +
-			       $"  Operations active: `{this.OperationsActive}`\n" +
-			       $"  Disconnects: `{this.Disconnects}`\n";
+			       $"  Operations active: `{this.OperationsActive}`\n";
 		}
 	}
 }
