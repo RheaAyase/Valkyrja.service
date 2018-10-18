@@ -89,7 +89,7 @@ namespace Botwinder.Service
 						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
 						string raidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
 						string raidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
-						string message = "Server Status: <http://status.botwinder.info>\n" +
+						string message = "Server Status: <https://status.valkyrja.app>\n" +
 						                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 						                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 						                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
