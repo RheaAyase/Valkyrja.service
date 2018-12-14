@@ -100,9 +100,6 @@ namespace Botwinder.Service
 							this.RaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
 						}
 
-						dbContext.SaveChanges();
-						dbContext.Dispose();
-
 						string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
 						string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
@@ -118,6 +115,9 @@ namespace Botwinder.Service
 						                 $"```\n" +
 						                 $"**Shards: `{dbContext.Shards.Count()}`**\n\n" +
 						                 $"{shards.ToString()}";
+
+						dbContext.SaveChanges();
+						dbContext.Dispose();
 
 						await statusMessage.ModifyAsync(m => m.Content = message);
 					}
