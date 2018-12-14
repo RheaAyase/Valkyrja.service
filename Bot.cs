@@ -23,6 +23,9 @@ namespace Botwinder.Service
 
 		private DateTime LastShardCleanupTime = DateTime.UtcNow;
 
+		private string RaidSync = "999";
+		private string RaidFailedDrives = "9";
+
 		public SkywinderClient()
 		{
 			this.Client.MessageReceived += ClientOnMessageReceived;
@@ -84,27 +87,6 @@ namespace Botwinder.Service
 							shards.AppendLine(shard.GetShortStatsString());
 						}
 
-						string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
-						string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
-						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
-						string raidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-						string raidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
-						string message = "Server Status: <https://status.valkyrja.app>\n" +
-						                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-						                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
-						                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
-						                 $"[     CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
-						                 $"[     CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
-						                 $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n" +
-						                 $"[     Raid Sync ][ {double.Parse(raidSync):000.00} %                ]\n" +
-						                 $"[ Raid Failures ][ {int.Parse(raidFailedDrives):0}                       ]\n" +
-						                 $"```\n" +
-						                 $"**Shards: `{dbContext.Shards.Count()}`**\n\n" +
-						                 $"{shards.ToString()}";
-
-						await statusMessage.ModifyAsync(m => m.Content = message);
-
-
 						if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
 						{
 							this.LastShardCleanupTime = DateTime.UtcNow;
@@ -113,10 +95,31 @@ namespace Botwinder.Service
 								shard.TimeStarted = DateTime.MinValue;
 								shard.IsConnecting = false;
 							}
+
+							this.RaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
+							this.RaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
 						}
 
 						dbContext.SaveChanges();
 						dbContext.Dispose();
+
+						string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
+						string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
+						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
+						string message = "Server Status: <https://status.valkyrja.app>\n" +
+						                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+						                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
+						                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
+						                 $"[     CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
+						                 $"[     CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
+						                 $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n" +
+						                 $"[     Raid Sync ][ {double.Parse(this.RaidSync):000.00} %                ]\n" +
+						                 $"[ Raid Failures ][ {int.Parse(this.RaidFailedDrives):0}                       ]\n" +
+						                 $"```\n" +
+						                 $"**Shards: `{dbContext.Shards.Count()}`**\n\n" +
+						                 $"{shards.ToString()}";
+
+						await statusMessage.ModifyAsync(m => m.Content = message);
 					}
 				}
 				catch(Exception exception)
