@@ -155,10 +155,11 @@ namespace Botwinder.Service
 			}
 		}
 
-		private async Task ClientDisconnected(Exception exception)
+		private Task ClientDisconnected(Exception exception)
 		{
 			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nShutting down.");
 			Environment.Exit(0); //HACK - The library often reconnects in really shitty way and no longer works
+			return Task.CompletedTask;
 		}
 
 		private async Task ClientOnMessageUpdated(Cacheable<IMessage, ulong> cacheable, SocketMessage socketMessage, ISocketMessageChannel arg3)
