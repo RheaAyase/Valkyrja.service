@@ -59,72 +59,87 @@ namespace Botwinder.Service
 					continue;
 				}
 
-				try
+				foreach( Config.Server server in this.Config.Servers )
 				{
-					//Update
-					SocketGuild mainGuild;
-					SocketTextChannel statusChannel;
-					RestUserMessage statusMessage;
-					if( (mainGuild = this.Client.GetGuild(this.Config.MainGuildId)) != null &&
-					    (statusChannel = mainGuild.GetTextChannel(this.Config.StatusChannelId)) != null &&
-					    (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(this.Config.StatusMessageId)) != null )
+					try
 					{
-						StringBuilder shards = new StringBuilder();
-						GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
-						Shard globalCount = new Shard();
-						foreach( Shard shard in dbContext.Shards )
+						//Update
+						SocketGuild mainGuild;
+						SocketTextChannel statusChannel;
+						RestUserMessage statusMessage;
+						if( (mainGuild = this.Client.GetGuild(server.GuildId)) != null &&
+						    (statusChannel = mainGuild.GetTextChannel(server.StatusChannelId)) != null )
 						{
-							globalCount.ServerCount += shard.ServerCount;
-							globalCount.UserCount += shard.UserCount;
-							globalCount.MemoryUsed += shard.MemoryUsed;
-							globalCount.ThreadsActive += shard.ThreadsActive;
-							globalCount.MessagesTotal += shard.MessagesTotal;
-							globalCount.MessagesPerMinute += shard.MessagesPerMinute;
-							globalCount.OperationsRan += shard.OperationsRan;
-							globalCount.OperationsActive += shard.OperationsActive;
-							globalCount.Disconnects += shard.Disconnects;
-
-							shards.AppendLine(shard.GetShortStatsString());
-						}
-
-						if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
-						{
-							this.LastShardCleanupTime = DateTime.UtcNow;
-							foreach( Shard shard in dbContext.Shards )
+							if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
 							{
-								shard.TimeStarted = DateTime.MinValue;
-								shard.IsConnecting = false;
+								statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
+								this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
+								this.Config.Save();
+								continue;
 							}
 
-							this.RaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-							this.RaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+							string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
+							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
+							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
+							string message = "Server Status: <https://status.valkyrja.app>\n" +
+							                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+							                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
+							                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
+							                 $"[     CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
+							                 $"[     CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
+							                 $"[     Raid Sync ][ {double.Parse(this.RaidSync):000.00} %                ]\n" +
+							                 $"[ Raid Failures ][ {int.Parse(this.RaidFailedDrives):0}                       ]\n";
+
+							StringBuilder shards = new StringBuilder();
+							if( this.Config.PrintShardsOnGuildId == server.GuildId )
+							{
+								GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
+								Shard globalCount = new Shard();
+								foreach( Shard shard in dbContext.Shards )
+								{
+									globalCount.ServerCount += shard.ServerCount;
+									globalCount.UserCount += shard.UserCount;
+									globalCount.MemoryUsed += shard.MemoryUsed;
+									globalCount.ThreadsActive += shard.ThreadsActive;
+									globalCount.MessagesTotal += shard.MessagesTotal;
+									globalCount.MessagesPerMinute += shard.MessagesPerMinute;
+									globalCount.OperationsRan += shard.OperationsRan;
+									globalCount.OperationsActive += shard.OperationsActive;
+									globalCount.Disconnects += shard.Disconnects;
+
+									shards.AppendLine(shard.GetShortStatsString());
+								}
+
+								if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
+								{
+									this.LastShardCleanupTime = DateTime.UtcNow;
+									foreach( Shard shard in dbContext.Shards )
+									{
+										shard.TimeStarted = DateTime.MinValue;
+										shard.IsConnecting = false;
+									}
+
+									this.RaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
+									this.RaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+								}
+
+								message = message + $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
+								dbContext.SaveChanges();
+								dbContext.Dispose();
+							}
+
+							message = message + "```\n";
+
+							if( this.Config.PrintShardsOnGuildId == server.GuildId )
+								message = message + $"**Shards: `{{dbContext.Shards.Count()}}`**\n\n{shards.ToString()}";
+
+							await statusMessage.ModifyAsync(m => m.Content = message);
 						}
-
-						string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
-						string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
-						string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
-						string message = "Server Status: <https://status.valkyrja.app>\n" +
-						                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-						                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
-						                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
-						                 $"[     CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
-						                 $"[     CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
-						                 $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n" +
-						                 $"[     Raid Sync ][ {double.Parse(this.RaidSync):000.00} %                ]\n" +
-						                 $"[ Raid Failures ][ {int.Parse(this.RaidFailedDrives):0}                       ]\n" +
-						                 $"```\n" +
-						                 $"**Shards: `{dbContext.Shards.Count()}`**\n\n" +
-						                 $"{shards.ToString()}";
-
-						dbContext.SaveChanges();
-						dbContext.Dispose();
-
-						await statusMessage.ModifyAsync(m => m.Content = message);
 					}
-				}
-				catch(Exception exception)
-				{
-					LogException(exception, "--Update");
+					catch(Exception exception)
+					{
+						LogException(exception, "--Update");
+					}
 				}
 
 				TimeSpan deltaTime = DateTime.UtcNow - frameTime;

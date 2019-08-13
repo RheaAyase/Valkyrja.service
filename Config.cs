@@ -8,6 +8,13 @@ namespace Botwinder.Service
 {
 	public class Config
 	{
+		public class Server
+		{
+			public guid GuildId;
+			public guid StatusChannelId;
+			public guid StatusMessageId;
+		}
+
 		public const string Filename = "config.json";
 		public const guid Rhea = 89805412676681728;
 		public const string RheaName = "Rhea#0321";
@@ -21,11 +28,10 @@ namespace Botwinder.Service
 		public string Username = "db_user";
 		public string Password = "db_password";
 		public string Database = "db_botwinder";
-		public guid MainGuildId = 155821059960995840;
-		public guid StatusChannelId = 444173726125260800;
-		public guid StatusMessageId = 444173873349525504;
+		public guid PrintShardsOnGuildId;
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
 		public string[] ServiceNames = { "botwinder", "coriolis" };
+		public Server[] Servers;
 
 		private Config(){}
 		public static Config Load()
