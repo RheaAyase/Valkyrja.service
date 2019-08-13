@@ -90,6 +90,7 @@ namespace Botwinder.Service
 							                 $"[     Raid Sync ][ {double.Parse(this.RaidSync):000.00} %                ]\n" +
 							                 $"[ Raid Failures ][ {int.Parse(this.RaidFailedDrives):0}                       ]\n";
 
+							int shardCount = 0;
 							StringBuilder shards = new StringBuilder();
 							if( this.Config.PrintShardsOnGuildId == server.GuildId )
 							{
@@ -109,6 +110,8 @@ namespace Botwinder.Service
 
 									shards.AppendLine(shard.GetShortStatsString());
 								}
+
+								shardCount = dbContext.Shards.Count();
 
 								if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
 								{
@@ -131,7 +134,7 @@ namespace Botwinder.Service
 							message = message + "```\n";
 
 							if( this.Config.PrintShardsOnGuildId == server.GuildId )
-								message = message + $"**Shards: `{{dbContext.Shards.Count()}}`**\n\n{shards.ToString()}";
+								message = message + $"**Shards: `{shardCount}`**\n\n{shards.ToString()}";
 
 							await statusMessage.ModifyAsync(m => m.Content = message);
 						}
