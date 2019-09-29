@@ -23,8 +23,10 @@ namespace Botwinder.Service
 
 		private DateTime LastShardCleanupTime = DateTime.UtcNow;
 
-		private string RaidSync = "999";
-		private string RaidFailedDrives = "9";
+		private string RootRaidSync = "-1";
+		private string RootRaidFailedDrives = "-1";
+		private string DataRaidSync = "-1";
+		private string DataRaidFailedDrives = "-1";
 
 		public SkywinderClient()
 		{
@@ -83,12 +85,14 @@ namespace Botwinder.Service
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
 							string message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-							                 $"[  Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
-							                 $"[      CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
-							                 $"[     CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
-							                 $"[     CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
-							                 $"[     Raid Sync ][ {double.Parse(this.RaidSync):000.00} %                ]\n" +
-							                 $"[ Raid Failures ][ {int.Parse(this.RaidFailedDrives):0}                       ]\n";
+							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
+							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
+							                 $"[          CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
+							                 $"[          CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
+							                 $"[     Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
+							                 $"[ Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
+							                 $"[     Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
+							                 $"[ Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n";
 
 							int shardCount = 0;
 							StringBuilder shards = new StringBuilder();
@@ -122,8 +126,10 @@ namespace Botwinder.Service
 										shard.IsConnecting = false;
 									}
 
-									this.RaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-									this.RaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+									this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
+									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+									this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
+									this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
 								}
 
 								message = message + $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
