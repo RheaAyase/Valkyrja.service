@@ -84,7 +84,7 @@ namespace Botwinder.Service
 							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
 							string message = "Server Status: <https://status.valkyrja.app>\n" +
-							                 $"```md\n[   Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
 							                 $"[          CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
@@ -132,7 +132,7 @@ namespace Botwinder.Service
 									this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
 								}
 
-								message = message + $"[       Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
+								message = message + $"[            Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
 								dbContext.SaveChanges();
 								dbContext.Dispose();
 							}
