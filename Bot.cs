@@ -126,8 +126,8 @@ namespace Botwinder.Service
 										shard.IsConnecting = false;
 									}
 
-									this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+									this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $2}'");
+									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
 									this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
 									this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
 								}
