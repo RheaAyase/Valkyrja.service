@@ -1,16 +1,10 @@
 Copyright © 2016 Radka Janek, [rhea-ayase.eu](http://rhea-ayase.eu)
 
-![alt CC BY-NC-SA 4.0 license](https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png)
+## Valkyrja.service
+Systemd service management for [Valkyrja.discord](https://github.com/RheaAyase/Valkyrja.discord)
 
-[Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-nc-sa/4.0/)
-
-
-
-## Botwinder.service
-Systemd service management for [Botwinder.discord](https://github.com/RheaAyase/Botwinder.discord)
-
-## The Botwinder
-Please take a look at our website to see what's the bot about, full list of features, invite and configuration: [http://botwinder.info](http://botwinder.info)
+## Valkyrja
+Please take a look at our website to see what's the bot about, full list of features, invite and configuration: [https://valkyrja.app](https://valkyrja.app)
 
 ## Contributors:
 
