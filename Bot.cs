@@ -27,6 +27,7 @@ namespace Botwinder.Service
 		private string RootRaidFailedDrives = "-1";
 		private string DataRaidSync = "-1";
 		private string DataRaidFailedDrives = "-1";
+		private bool ShuttingDown = false;
 
 		public SkywinderClient()
 		{
@@ -66,11 +67,11 @@ namespace Botwinder.Service
 					try
 					{
 						//Update
-						SocketGuild mainGuild;
+						SocketGuild guild;
 						SocketTextChannel statusChannel;
 						RestUserMessage statusMessage;
-						if( (mainGuild = this.Client.GetGuild(server.GuildId)) != null &&
-						    (statusChannel = mainGuild.GetTextChannel(server.StatusChannelId)) != null )
+						if( (guild = this.Client.GetGuild(server.GuildId)) != null &&
+						    (statusChannel = guild.GetTextChannel(server.StatusChannelId)) != null )
 						{
 							if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
 							{
@@ -80,10 +81,22 @@ namespace Botwinder.Service
 								continue;
 							}
 
+							string message;
+							if( this.ShuttingDown )
+							{
+								message = "Server Status: <https://status.valkyrja.app>\n" +
+								                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+								                 $"[              State ][ Down for Maintenance    ]\n" +
+								                 $"<:offwinder:438702031155494912>";
+
+								await statusMessage.ModifyAsync(m => m.Content = message);
+								continue;
+							}
+
 							string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
 							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
-							string message = "Server Status: <https://status.valkyrja.app>\n" +
+							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
@@ -243,6 +256,12 @@ namespace Botwinder.Service
 
 						Console.WriteLine("Executing !serviceRestart "+ trimmedMessage +" | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
 						response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
+						break;
+					case "maintenance":
+					case "shutdown":
+					case "poweroff":
+						this.ShuttingDown = true;
+						response = "State: `Down for Maintenance`";
 						break;
 					default:
 						return;
