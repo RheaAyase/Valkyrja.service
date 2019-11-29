@@ -1,6 +1,6 @@
 *.userprefs
 
-## Botwinder specific:
+## Valkyrja specific:
 config.json
 project.lock.json
 bin/

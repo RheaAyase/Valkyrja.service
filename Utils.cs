@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 using guid = System.UInt64;
 
-namespace Botwinder.entities
+namespace Valkyrja.entities
 {
 	public class Utils
 	{

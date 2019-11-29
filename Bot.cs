@@ -7,11 +7,10 @@ using System.Threading.Tasks;
 using Discord;
 using Discord.Rest;
 using Discord.WebSocket;
-using Botwinder.entities;
-
+using Valkyrja.entities;
 using guid = System.UInt64;
 
-namespace Botwinder.Service
+namespace Valkyrja.service
 {
 	public class SkywinderClient
 	{
@@ -28,6 +27,7 @@ namespace Botwinder.Service
 		private string DataRaidSync = "-1";
 		private string DataRaidFailedDrives = "-1";
 		private bool ShuttingDown = false;
+		public bool IsValkOnline = true;
 
 		public SkywinderClient()
 		{
@@ -128,6 +128,7 @@ namespace Botwinder.Service
 									shards.AppendLine(shard.GetShortStatsString());
 								}
 
+								this.IsValkOnline = dbContext.Shards.All(s => s.TimeStarted > DateTime.MinValue);
 								shardCount = dbContext.Shards.Count();
 
 								if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
@@ -235,7 +236,7 @@ namespace Botwinder.Service
 
 			try
 			{
-				switch(commandString) //TODO: Replace by Botwinder's command handling...
+				switch(commandString) //TODO: Replace by Valk's command handling...
 				{
 					case "serviceStatus":
 						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
@@ -276,6 +277,14 @@ namespace Botwinder.Service
 			if( !string.IsNullOrWhiteSpace(response) )
 				await socketMessage.Channel.SendMessageAsync(response);
 
+		}
+
+		public string GetPrefix(guid serverId)
+		{
+			GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
+			string prefix = dbContext.ServerConfigurations.FirstOrDefault(c => c.ServerId == serverId)?.CommandPrefix ?? this.Config.Prefix;
+			dbContext.Dispose();
+			return prefix;
 		}
 
 		public void LogException(Exception e, string data = "")

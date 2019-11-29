@@ -4,7 +4,7 @@ using Newtonsoft.Json;
 
 using guid = System.UInt64;
 
-namespace Botwinder.Service
+namespace Valkyrja.service
 {
 	public class Config
 	{
@@ -17,7 +17,7 @@ namespace Botwinder.Service
 
 		public const string Filename = "config.json";
 		public const guid Rhea = 89805412676681728;
-		public const string RheaName = "Rhea#0321";
+		public const string RheaName = "Rhea#1234";
 		public const int MessageCharacterLimit = 2000;
 
 		public string BotToken = "";
@@ -27,10 +27,10 @@ namespace Botwinder.Service
 		public string Port = "3306";
 		public string Username = "db_user";
 		public string Password = "db_password";
-		public string Database = "db_botwinder";
+		public string Database = "db_valkyrja";
 		public guid PrintShardsOnGuildId;
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
-		public string[] ServiceNames = { "botwinder", "coriolis" };
+		public string[] ServiceNames = { "valkyrja", "httpd" };
 		public Server[] Servers;
 
 		private Config(){}

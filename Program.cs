@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Threading.Tasks;
-using Discord;
 
-namespace Botwinder.Service
+namespace Valkyrja.service
 {
     public class Program
     {
@@ -12,24 +10,19 @@ namespace Botwinder.Service
         {
 	        Connect();
 
-			while( true )
-			{
-				Task.Delay(300000).Wait();
-				if( Skywinder.Client.ConnectionState == ConnectionState.Disconnected )
-					Connect();
-			}
+			new ApiService(Skywinder).Run();
 		}
 
 	    public static void Connect()
 	    {
-		    Console.WriteLine("Botwinder.Service: Connecting...");
+		    Console.WriteLine("Valkyrja.Service: Connecting...");
 
 		    if( Skywinder != null )
 			    Skywinder.Client.Dispose();
 		    Skywinder = new SkywinderClient();
 		    Skywinder.Connect().Wait();
 
-		    Console.WriteLine("Botwinder.Service: Connected.");
+		    Console.WriteLine("Valkyrja.Service: Connected.");
 	    }
     }
 }
