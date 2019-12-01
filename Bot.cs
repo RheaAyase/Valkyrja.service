@@ -86,7 +86,7 @@ namespace Valkyrja.service
 							{
 								message = "Server Status: <https://status.valkyrja.app>\n" +
 								                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-								                 $"[              State ][ Down for Maintenance    ]\n" +
+								                 $"[              State ][ Down for Maintenance    ]```\n" +
 								                 $"<:offwinder:438702031155494912>";
 
 								await statusMessage.ModifyAsync(m => m.Content = message);
