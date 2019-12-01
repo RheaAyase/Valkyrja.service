@@ -264,6 +264,10 @@ namespace Valkyrja.service
 						this.ShuttingDown = true;
 						response = "State: `Down for Maintenance`";
 						break;
+					case "endMaintenance":
+						this.ShuttingDown = false;
+						response = "State: `Online`";
+						break;
 					default:
 						return;
 				}
