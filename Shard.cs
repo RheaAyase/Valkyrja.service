@@ -111,9 +111,7 @@ namespace Valkyrja.entities
 			return $"**Shard ID: `{this.Id - 1}`**\n" +
 			       $"  Time Started: `{Utils.GetTimestamp(this.TimeStarted)}`\n" +
 			       $"  Uptime: `{uptimeString}`\n" +
-			       $"  Allocated data Memory: `{this.MemoryUsed} MB`\n" +
-			       $"  Threads: `{this.ThreadsActive}`\n" +
-			       $"  Operations active: `{this.OperationsActive}`\n";
+			       $"  Allocated data Memory: `{this.MemoryUsed} MB`\n";
 		}
 	}
 }
