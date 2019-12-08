@@ -93,15 +93,18 @@ namespace Valkyrja.service
 								continue;
 							}
 
-							string[] cpuTemp = Bash.Run("sensors | grep Package | sed 's/Package id [01]:\\s*+//g' | sed 's/\\s*(high = +85.0°C, crit = +95.0°C)//g'").Split('\n');
+							string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
 							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
+							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
-							                 $"[          CPU0 Temp ][ {cpuTemp[0]}                  ]\n" +
-							                 $"[          CPU1 Temp ][ {cpuTemp[1]}                  ]\n" +
+							                 $"[      CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
+							                 $"[      CPU Tdie Temp ][ {temp[1]} °C                 ]\n" +
+							                 $"[      CPU Tctl Temp ][ {temp[2]} °C                 ]\n" +
+							                 $"[           GPU Temp ][ {temp[0]} °C                 ]\n" +
 							                 $"[     Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
 							                 $"[ Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
 							                 $"[     Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
