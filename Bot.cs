@@ -97,14 +97,16 @@ namespace Valkyrja.service
 							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
+							Console.WriteLine(temp.ToString());
+
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
 							                 $"[      CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
-							                 $"[      CPU Tdie Temp ][ {temp[1]} °C                 ]\n" +
-							                 $"[      CPU Tctl Temp ][ {temp[2]} °C                 ]\n" +
-							                 $"[           GPU Temp ][ {temp[0]} °C                 ]\n" +
+							                 $"[      CPU Tdie Temp ][ {temp[1]}                 ]\n" +
+							                 $"[      CPU Tctl Temp ][ {temp[2]}                 ]\n" +
+							                 $"[           GPU Temp ][ {temp[0]}                 ]\n" +
 							                 $"[     Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
 							                 $"[ Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
 							                 $"[     Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
