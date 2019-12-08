@@ -97,7 +97,6 @@ namespace Valkyrja.service
 							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
-							Console.WriteLine(temp.ToString());
 
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
