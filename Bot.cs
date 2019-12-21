@@ -103,9 +103,10 @@ namespace Valkyrja.service
 							                 $"[       Memory usage ][ {double.Parse(memoryUsed):#00.00} %                 ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
 							                 $"[      CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
+							                 (temp.Length < 3 ? "" : (
 							                 $"[      CPU Tdie Temp ][ {temp[1]}                 ]\n" +
 							                 $"[      CPU Tctl Temp ][ {temp[2]}                 ]\n" +
-							                 $"[           GPU Temp ][ {temp[0]}                 ]\n" +
+							                 $"[           GPU Temp ][ {temp[0]}                 ]\n")) +
 							                 $"[     Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
 							                 $"[ Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
 							                 $"[     Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
