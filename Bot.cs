@@ -101,7 +101,7 @@ namespace Valkyrja.service
 
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-							                 $"[       Memory usage ][ {memoryPercentage:#00.00} %  ({memoryPercentage/100*128:000.00}/128GB)             ]\n" +
+							                 $"[       Memory usage ][ {memoryPercentage:#00.00} % ({memoryPercentage/100*128:000.00}/128 GB) ]\n" +
 							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
 							                 $"[      CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
 							                 (temp.Length < 3 ? "" : (
