@@ -28,6 +28,8 @@ namespace Valkyrja.service
 		public string Username = "db_user";
 		public string Password = "db_password";
 		public string Database = "db_valkyrja";
+		public string PrometheusEndpoint = "";
+		public string PrometheusJob = "";
 		public guid PrintShardsOnGuildId;
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };
 		public string[] ServiceNames = { "valkyrja", "httpd" };

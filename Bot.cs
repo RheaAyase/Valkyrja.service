@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -14,6 +15,8 @@ namespace Valkyrja.service
 {
 	public class SkywinderClient
 	{
+		private Monitoring Monitoring;
+
 		internal readonly DiscordSocketClient Client = new DiscordSocketClient();
 		private  readonly Config Config = Config.Load();
 		private  readonly Regex RegexCommandParams = new Regex("\"[^\"]+\"|\\S+", RegexOptions.Compiled);
@@ -46,6 +49,9 @@ namespace Valkyrja.service
 				this.MainUpdateCancel = new CancellationTokenSource();
 				this.MainUpdateTask = Task.Factory.StartNew(MainUpdate, this.MainUpdateCancel.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
 			}
+
+			if( this.Monitoring == null )
+				this.Monitoring = new Monitoring(this.Config);
 		}
 
 //Update
@@ -98,6 +104,11 @@ namespace Valkyrja.service
 							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
 							double memoryPercentage = double.Parse(memoryUsed);
+
+							this.Monitoring.MemTotal.Set(128);
+							this.Monitoring.MemUsed.Set(memoryPercentage/100*128);
+							this.Monitoring.MemPercent.Set(memoryPercentage);
+							this.Monitoring.Temp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
 
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +

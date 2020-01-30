@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Internal;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -39,11 +40,12 @@ namespace Valkyrja.service
 				}
 
 				//app.UseHttpsRedirection();
-				app.UseMvc();
+				app.UseMvcWithDefaultRoute();
 				app.Use((context, next) => {
 					context.Request.Scheme = "https";
 					return next();
 				});
+				app.UseEndpoint();
 			}
 		}
 
