@@ -9,7 +9,7 @@ namespace Valkyrja.service
 		public Gauge MemTotal = Metrics.CreateGauge("hw_memory_total", "Server: Total memory");
 		public Gauge MemUsed = Metrics.CreateGauge("hw_memory_used", "Server: Used memory");
 		public Gauge MemPercent = Metrics.CreateGauge("hw_memory_percent", "Server: Used memory percentage of total");
-		public Gauge Temp = Metrics.CreateGauge("hw_memory_percent", "Server: Used memory percentage of total");
+		public Gauge Temp = Metrics.CreateGauge("hw_memory_temp", "Server: Used memory percentage of total");
 
 		public Monitoring(Config config)
 		{
