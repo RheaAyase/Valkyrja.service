@@ -1,10 +1,11 @@
+using System;
 using Prometheus;
 
 namespace Valkyrja.service
 {
-	public class Monitoring
+	public class Monitoring: IDisposable
 	{
-		private MetricPusher Prometheus;
+		private readonly MetricPusher Prometheus;
 
 		public readonly Gauge CpuUtil = Metrics.CreateGauge("hw_cpu_util", "Server: CPU Utilization in %");
 		public readonly Gauge MemUsed = Metrics.CreateGauge("hw_mem_used", "Server: Used memory in GiB");
@@ -25,6 +26,12 @@ namespace Valkyrja.service
 			if( this.Prometheus == null )
 				this.Prometheus = new MetricPusher(config.PrometheusEndpoint, config.PrometheusJob, intervalMilliseconds:(long)(1f / config.TargetFps * 1000));
 			this.Prometheus.Start();
+		}
+
+		public void Dispose()
+		{
+			this.Prometheus.Stop();
+			((IDisposable)this.Prometheus)?.Dispose();
 		}
 	}
 }

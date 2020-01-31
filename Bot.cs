@@ -39,6 +39,11 @@ namespace Valkyrja.service
 			this.Client.Disconnected += ClientDisconnected;
 		}
 
+		~SkywinderClient()
+		{
+			this.Monitoring.Dispose();
+		}
+
 		public async Task Connect()
 		{
 			await this.Client.LoginAsync(TokenType.Bot, this.Config.BotToken).ConfigureAwait(false);
