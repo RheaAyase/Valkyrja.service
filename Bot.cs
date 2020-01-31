@@ -17,7 +17,7 @@ namespace Valkyrja.service
 	{
 		private Monitoring Monitoring;
 
-		internal readonly DiscordSocketClient Client = new DiscordSocketClient();
+		internal DiscordSocketClient Client = new DiscordSocketClient();
 		private readonly Config Config = Config.Load();
 		private readonly Regex RegexCommandParams = new Regex("\"[^\"]+\"|\\S+", RegexOptions.Compiled);
 		private readonly Regex RegexPcp = new Regex("\\d+\\.?\\d*", RegexOptions.Compiled);
@@ -35,9 +35,7 @@ namespace Valkyrja.service
 
 		public SkywinderClient()
 		{
-			this.Client.MessageReceived += ClientOnMessageReceived;
-			this.Client.MessageUpdated += ClientOnMessageUpdated;
-			this.Client.Disconnected += ClientDisconnected;
+			SetEvents();
 		}
 
 		~SkywinderClient()
@@ -67,7 +65,37 @@ namespace Valkyrja.service
 			{
 				DateTime frameTime = DateTime.UtcNow;
 
-				if( this.Client.ConnectionState != ConnectionState.Connected ||
+				Ping pingCloudflare = new Ping();
+				Ping pingGoogle = new Ping();
+				Ping pingDiscord = new Ping();
+				Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
+				Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
+				Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
+				string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
+				MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
+
+				double cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
+				double memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
+				double diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
+				double netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
+				string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
+				string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
+				long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
+				long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
+				long latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+
+				this.Monitoring.CpuUtil.Set(cpuUtil);
+				this.Monitoring.MemUsed.Set(memUsed);
+				this.Monitoring.DiskUtil.Set(diskUtil);
+				this.Monitoring.NetUtil.Set(netUtil);
+				this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
+				this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+				this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
+				this.Monitoring.LatencyGoogle.Set(latencyGoogle);
+				this.Monitoring.LatencyDiscord.Set(latencyDiscord);
+
+				if( this.Client == null ||
+					this.Client.ConnectionState != ConnectionState.Connected ||
 				    this.Client.LoginState != LoginState.LoggedIn )
 				{
 					await Task.Delay(10000);
@@ -92,36 +120,6 @@ namespace Valkyrja.service
 								this.Config.Save();
 								continue;
 							}
-
-							Ping pingCloudflare = new Ping();
-							Ping pingGoogle = new Ping();
-							Ping pingDiscord = new Ping();
-							Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
-							Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
-							Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
-							string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
-							MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
-
-							double cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
-							double memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
-							double diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
-							double netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-							string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
-							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
-							long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
-							long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
-							long latencyDiscord = (await pingReplyDiscord).RoundtripTime;
-
-							this.Monitoring.CpuUtil.Set(cpuUtil);
-							this.Monitoring.MemUsed.Set(memUsed);
-							this.Monitoring.DiskUtil.Set(diskUtil);
-							this.Monitoring.NetUtil.Set(netUtil);
-							this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
-							this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
-							this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
-							this.Monitoring.LatencyGoogle.Set(latencyGoogle);
-							this.Monitoring.LatencyDiscord.Set(latencyDiscord);
-
 
 							string message;
 							if( this.ShuttingDown )
@@ -245,11 +243,25 @@ namespace Valkyrja.service
 			}
 		}
 
-		private Task ClientDisconnected(Exception exception)
+		private async Task ClientDisconnected(Exception exception)
 		{
-			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nShutting down.");
-			Environment.Exit(0); //HACK - The library often reconnects in really shitty way and no longer works
-			return Task.CompletedTask;
+			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
+			await Restart();
+		}
+
+		private async Task Restart()
+		{
+			this.Client.Dispose();
+			this.Client = new DiscordSocketClient();
+			SetEvents();
+			await Connect();
+		}
+
+		private void SetEvents()
+		{
+			this.Client.MessageReceived += ClientOnMessageReceived;
+			this.Client.MessageUpdated += ClientOnMessageUpdated;
+			this.Client.Disconnected += ClientDisconnected;
 		}
 
 		private async Task ClientOnMessageUpdated(Cacheable<IMessage, ulong> cacheable, SocketMessage socketMessage, ISocketMessageChannel arg3)
