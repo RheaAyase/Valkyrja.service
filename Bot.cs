@@ -195,7 +195,7 @@ namespace Valkyrja.service
 									this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
 								}
 
-								message = message + $"[            Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
+								message = message + $"[             Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
 								dbContext.SaveChanges();
 								dbContext.Dispose();
 							}
