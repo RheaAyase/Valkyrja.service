@@ -18,8 +18,9 @@ namespace Valkyrja.service
 		private Monitoring Monitoring;
 
 		internal readonly DiscordSocketClient Client = new DiscordSocketClient();
-		private  readonly Config Config = Config.Load();
-		private  readonly Regex RegexCommandParams = new Regex("\"[^\"]+\"|\\S+", RegexOptions.Compiled);
+		private readonly Config Config = Config.Load();
+		private readonly Regex RegexCommandParams = new Regex("\"[^\"]+\"|\\S+", RegexOptions.Compiled);
+		private readonly Regex RegexPcp = new Regex("\\d+\\.?\\d*", RegexOptions.Compiled);
 		private CancellationTokenSource MainUpdateCancel;
 		private Task MainUpdateTask;
 
@@ -99,8 +100,7 @@ namespace Valkyrja.service
 							Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
 							Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
 							string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
-							Regex PcpRegex = new Regex("\\d+\\.?\\d*", RegexOptions.Compiled);
-							MatchCollection pcpArray = PcpRegex.Matches(pcpRaw);
+							MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
 
 							double cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
 							double memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
