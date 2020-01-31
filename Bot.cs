@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Globalization;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -87,42 +87,66 @@ namespace Valkyrja.service
 								continue;
 							}
 
+							Ping pingCloudflare = new Ping();
+							Ping pingGoogle = new Ping();
+							Ping pingDiscord = new Ping();
+							Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
+							Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
+							Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
+							string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
+							Regex PcpRegex = new Regex("\\d+\\.?\\d*", RegexOptions.Compiled);
+							MatchCollection pcpArray = PcpRegex.Matches(pcpRaw);
+
+							double cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
+							double memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
+							double diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
+							double netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
+							string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
+							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
+							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
+							long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
+							long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
+							long latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+
+							this.Monitoring.CpuUtil.Set(cpuUtil);
+							this.Monitoring.MemUsed.Set(memUsed);
+							this.Monitoring.DiskUtil.Set(diskUtil);
+							this.Monitoring.NetUtil.Set(netUtil);
+							this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
+							this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+							this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
+							this.Monitoring.LatencyGoogle.Set(latencyGoogle);
+							this.Monitoring.LatencyDiscord.Set(latencyDiscord);
+
+
 							string message;
 							if( this.ShuttingDown )
 							{
 								message = "Server Status: <https://status.valkyrja.app>\n" +
-								                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-								                 $"[              State ][ Down for Maintenance    ]```\n" +
-								                 $"<:offwinder:438702031155494912>";
+								          $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+								          $"[              State ][ Down for Maintenance    ]```\n" +
+								          $"<:offwinder:438702031155494912>";
 
 								await statusMessage.ModifyAsync(m => m.Content = message);
 								continue;
 							}
 
-							string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
-							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
-							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
-							string memoryUsed = Bash.Run("free | grep Mem | awk '{print $3/$2 * 100.0}'");
-							double memoryPercentage = double.Parse(memoryUsed);
-
-							this.Monitoring.MemTotal.Set(128);
-							this.Monitoring.MemUsed.Set(memoryPercentage/100*128);
-							this.Monitoring.MemPercent.Set(memoryPercentage);
-							this.Monitoring.Temp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
-
 							message = "Server Status: <https://status.valkyrja.app>\n" +
-							                 $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-							                 $"[       Memory usage ][ {memoryPercentage:#00.00} % ({memoryPercentage/100*128:000.00}/128 GB) ]\n" +
-							                 $"[           CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
-							                 $"[      CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
+							                 $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+							                 $"[        Memory usage ][ {memUsed/128*100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
+							                 $"[            CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
+							                 $"[       CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
 							                 (temp.Length < 3 ? "" : (
-							                 $"[      CPU Tdie Temp ][ {temp[1]}                 ]\n" +
-							                 $"[      CPU Tctl Temp ][ {temp[2]}                 ]\n" +
-							                 $"[           GPU Temp ][ {temp[0]}                 ]\n")) +
-							                 $"[     Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
-							                 $"[ Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
-							                 $"[     Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
-							                 $"[ Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n";
+							                 $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
+							                 $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
+							                 $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
+							                 $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
+							                 $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
+							                 $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
+							                 $"[      Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
+							                 $"[  Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
+							                 $"[      Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
+							                 $"[  Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n";
 
 							int shardCount = 0;
 							StringBuilder shards = new StringBuilder();
@@ -161,6 +185,10 @@ namespace Valkyrja.service
 									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
 									this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
 									this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+									this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
+									this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
+									this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
+									this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
 								}
 
 								message = message + $"[            Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
