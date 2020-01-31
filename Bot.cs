@@ -102,7 +102,6 @@ namespace Valkyrja.service
 							double diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 							double netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
 							string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
-							string cpuLoad = Bash.Run("grep 'cpu ' /proc/stat | awk '{print ($2+$4)*100/($2+$4+$5)}'");
 							string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 							long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 							long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
@@ -134,7 +133,7 @@ namespace Valkyrja.service
 							message = "Server Status: <https://status.valkyrja.app>\n" +
 							                 $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
 							                 $"[        Memory usage ][ {memUsed/128*100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
-							                 $"[            CPU Load ][ {double.Parse(cpuLoad):#00.00} %                 ]\n" +
+							                 $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
 							                 $"[       CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
 							                 (temp.Length < 3 ? "" : (
 							                 $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
