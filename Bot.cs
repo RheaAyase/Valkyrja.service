@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
+using Discord.Net;
 using Discord.Rest;
 using Discord.WebSocket;
 using Valkyrja.entities;
@@ -203,7 +204,14 @@ namespace Valkyrja.service
 							if( this.Config.PrintShardsOnGuildId == server.GuildId )
 								message = message + $"**Shards: `{shardCount}`**\n\n{shards.ToString()}";
 
-							await statusMessage.ModifyAsync(m => m.Content = message);
+							try
+							{
+								await statusMessage.ModifyAsync(m => m.Content = message);
+							}
+							catch( HttpException e )
+							{
+								this.Monitoring.Error500s.Inc();
+							}
 						}
 					}
 					catch(Exception exception)
@@ -245,13 +253,14 @@ namespace Valkyrja.service
 
 		private async Task ClientDisconnected(Exception exception)
 		{
+			this.Monitoring.Disconnects.Inc();
 			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
 			await Restart();
 		}
 
 		private async Task Restart()
 		{
-			//this.Client.Dispose();
+			//this.Client.Dispose(); //The discord client hangs.
 			this.Client = new DiscordSocketClient();
 			SetEvents();
 			await Connect();

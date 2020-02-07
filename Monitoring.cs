@@ -20,11 +20,13 @@ namespace Valkyrja.service
 		public readonly Gauge RootRaidFailedDrives = Metrics.CreateGauge("hw_lvm_root_failed", "Server: LVM root RAID array failures");
 		public readonly Gauge DataRaidSync = Metrics.CreateGauge("hw_lvm_data_sync", "Server: LVM data RAID array sync");
 		public readonly Gauge DataRaidFailedDrives = Metrics.CreateGauge("hw_lvm_data_failed", "Server: LVM data RAID array failures");
+		public readonly Counter Disconnects = Metrics.CreateCounter("discord_valk_dc", "Valkyrja: disconnects");
+		public readonly Counter Error500s = Metrics.CreateCounter("discord_valk_500", "Valkyrja: Discord server error 500s");
 
 		public Monitoring(Config config)
 		{
 			if( this.Prometheus == null )
-				this.Prometheus = new MetricPusher(config.PrometheusEndpoint, config.PrometheusJob, intervalMilliseconds:(long)(1f / config.TargetFps * 1000));
+				this.Prometheus = new MetricPusher(config.PrometheusEndpoint, config.PrometheusJob, "sigrun", intervalMilliseconds:(long)(1f / config.TargetFps * 1000));
 			this.Prometheus.Start();
 		}
 
