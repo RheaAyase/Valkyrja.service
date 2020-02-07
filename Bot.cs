@@ -251,7 +251,7 @@ namespace Valkyrja.service
 
 		private async Task Restart()
 		{
-			this.Client.Dispose();
+			//this.Client.Dispose();
 			this.Client = new DiscordSocketClient();
 			SetEvents();
 			await Connect();
@@ -283,17 +283,18 @@ namespace Valkyrja.service
 
 		private async Task HandleCommands(SocketMessage socketMessage)
 		{
+			if( socketMessage.Content == null ||
+			    !this.Config.AdminIDs.Contains(socketMessage.Author.Id) ||
+			    string.IsNullOrWhiteSpace(this.Config.Prefix) ||
+			    !socketMessage.Content.StartsWith(this.Config.Prefix) )
+				return;
+
 			string commandString = "", trimmedMessage = "";
 			string[] parameters;
 			if( !string.IsNullOrWhiteSpace(this.Config.Prefix) && socketMessage.Content.StartsWith(this.Config.Prefix) )
 				GetCommandAndParams(socketMessage.Content, out commandString, out trimmedMessage, out parameters);
 
-
 			string response = "";
-			if( !this.Config.AdminIDs.Contains(socketMessage.Author.Id) ||
-			     string.IsNullOrWhiteSpace(this.Config.Prefix) ||
-			    !socketMessage.Content.StartsWith(this.Config.Prefix) )
-				return;
 
 			try
 			{
