@@ -26,7 +26,7 @@ namespace Valkyrja.service
 		public Monitoring(Config config)
 		{
 			if( this.Prometheus == null )
-				this.Prometheus = new MetricPusher(config.PrometheusEndpoint, config.PrometheusJob, "sigrun", intervalMilliseconds:(long)(1f / config.TargetFps * 1000));
+				this.Prometheus = new MetricPusher(config.PrometheusEndpoint, config.PrometheusJob, "hw", intervalMilliseconds:(long)(1f / config.TargetFps * 1000));
 			this.Prometheus.Start();
 		}
 
