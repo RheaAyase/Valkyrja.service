@@ -69,9 +69,13 @@ namespace Valkyrja.service
 				Ping pingCloudflare = new Ping();
 				Ping pingGoogle = new Ping();
 				Ping pingDiscord = new Ping();
+				Ping pingVmF1 = new Ping();
+				Ping pingVmR1 = new Ping();
 				Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
 				Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
 				Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
+				Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
+				Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
 				string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
 				MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
 
@@ -84,6 +88,8 @@ namespace Valkyrja.service
 				long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 				long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
 				long latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+				long latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
+				long latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
 
 				this.Monitoring.CpuUtil.Set(cpuUtil);
 				this.Monitoring.MemUsed.Set(memUsed);
@@ -94,6 +100,8 @@ namespace Valkyrja.service
 				this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
 				this.Monitoring.LatencyGoogle.Set(latencyGoogle);
 				this.Monitoring.LatencyDiscord.Set(latencyDiscord);
+				this.Monitoring.VmFedora1.Set(latencyVmF1);
+				this.Monitoring.VmRhel1.Set(latencyVmR1);
 
 				if( this.Client == null ||
 					this.Client.ConnectionState != ConnectionState.Connected ||
@@ -183,6 +191,7 @@ namespace Valkyrja.service
 										shard.TimeStarted = DateTime.MinValue;
 										shard.IsConnecting = false;
 									}
+									dbContext.SaveChanges();
 
 									this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $2}'");
 									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
@@ -195,7 +204,6 @@ namespace Valkyrja.service
 								}
 
 								message = message + $"[             Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
-								dbContext.SaveChanges();
 								dbContext.Dispose();
 							}
 
@@ -208,7 +216,7 @@ namespace Valkyrja.service
 							{
 								await statusMessage.ModifyAsync(m => m.Content = message);
 							}
-							catch( HttpException e )
+							catch( HttpException )
 							{
 								this.Monitoring.Error500s.Inc();
 							}
