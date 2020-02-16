@@ -108,9 +108,7 @@ namespace Valkyrja.entities
 				(minutes == 0 ? "" : (minutes.ToString() + (minutes == 1 ? " minute, " : " minutes "))) +
 				((days == 0 && hours == 0 && minutes == 0 ? "" : "and ") + seconds.ToString() + (seconds == 1 ? " second." : " seconds."));
 
-			return $"**Shard ID: `{this.Id - 1}`**\n" +
-			       $"  Uptime: `{uptimeString}`\n" +
-			       $"  Allocated data Memory: `{this.MemoryUsed} MB`\n";
+			return $"**Shard `{this.Id - 1}` uptime:** `{uptimeString}`\n";
 		}
 	}
 }

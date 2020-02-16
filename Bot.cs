@@ -66,6 +66,7 @@ namespace Valkyrja.service
 			{
 				DateTime frameTime = DateTime.UtcNow;
 
+				// Prep monitoring data
 				Ping pingCloudflare = new Ping();
 				Ping pingGoogle = new Ping();
 				Ping pingDiscord = new Ping();
@@ -79,24 +80,77 @@ namespace Valkyrja.service
 				string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
 				MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
 
-				double cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
-				double memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
-				double diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
-				double netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-				string[] temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
-				string cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
-				long latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
-				long latencyGoogle = (await pingReplyGoogle).RoundtripTime;
-				long latencyDiscord = (await pingReplyDiscord).RoundtripTime;
-				long latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
-				long latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
+				StringBuilder shards = new StringBuilder();
+				GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
+				foreach( Shard shard in dbContext.Shards )
+				{
+					shards.AppendLine(shard.GetShortStatsString());
+				}
+
+				this.IsValkOnline = dbContext.Shards.All(s => s.TimeStarted > DateTime.MinValue);
+
+				if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
+				{
+					this.LastShardCleanupTime = DateTime.UtcNow;
+					foreach( Shard shard in dbContext.Shards )
+					{
+						shard.TimeStarted = DateTime.MinValue;
+						shard.IsConnecting = false;
+					}
+
+					dbContext.SaveChanges();
+
+					this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $2}'");
+					this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
+					this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
+					this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
+					this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
+					this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
+					this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
+					this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
+				}
+				dbContext.Dispose();
+
+				double cpuUtil = 0; //%
+				double memUsed = 0; //GB
+				double diskUtil = 0; //MB/s
+				double netUtil = 0; //Mbps
+				string[] temp = null;
+				string cpuFrequency = "";
+				long latencyCloudflare = 0;
+				long latencyGoogle = 0;
+				long latencyDiscord = 0;
+				long latencyVmF1 = 0;
+				long latencyVmR1 = 0;
+
+				try
+				{
+					cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
+					memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
+					diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
+					netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
+					temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
+					cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
+					latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
+					latencyGoogle = (await pingReplyGoogle).RoundtripTime;
+					latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+					latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
+					latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
+				}
+				catch( Exception exception )
+				{
+					LogException(exception, "--Update: Monitoring data");
+				}
 
 				this.Monitoring.CpuUtil.Set(cpuUtil);
 				this.Monitoring.MemUsed.Set(memUsed);
 				this.Monitoring.DiskUtil.Set(diskUtil);
 				this.Monitoring.NetUtil.Set(netUtil);
-				this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
-				this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+				if( temp != null && temp.Length > 0 )
+				{
+					this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
+					this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+				}
 				this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
 				this.Monitoring.LatencyGoogle.Set(latencyGoogle);
 				this.Monitoring.LatencyDiscord.Set(latencyDiscord);
@@ -107,9 +161,33 @@ namespace Valkyrja.service
 					this.Client.ConnectionState != ConnectionState.Connected ||
 				    this.Client.LoginState != LoginState.LoggedIn )
 				{
-					await Task.Delay(10000);
+					await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
 					continue;
 				}
+
+				string message = null;
+				if( this.ShuttingDown )
+					message = "Server Status: <https://status.valkyrja.app>\n" +
+					          $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+					          $"[              State ][ Down for Maintenance    ]```\n" +
+					          $"<:offwinder:438702031155494912>";
+				else
+					message = "Server Status: <https://status.valkyrja.app>\n" +
+					          $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+					          $"[        Memory usage ][ {memUsed / 128 * 100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
+					          $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
+					          $"[       CPU Frequency ][ {double.Parse(cpuFrequency) / 1000:#0.00} GHz                ]\n" + (temp.Length < 3 ? "" : (
+							  $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
+							  $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
+							  $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
+					          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
+					          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
+					          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
+					          $"[      Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
+					          $"[  Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
+					          $"[      Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
+					          $"[  Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n" +
+					          $"```\n";
 
 				foreach( Config.Server server in this.Config.Servers )
 				{
@@ -130,87 +208,8 @@ namespace Valkyrja.service
 								continue;
 							}
 
-							string message;
-							if( this.ShuttingDown )
-							{
-								message = "Server Status: <https://status.valkyrja.app>\n" +
-								          $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-								          $"[              State ][ Down for Maintenance    ]```\n" +
-								          $"<:offwinder:438702031155494912>";
-
-								await statusMessage.ModifyAsync(m => m.Content = message);
-								continue;
-							}
-
-							message = "Server Status: <https://status.valkyrja.app>\n" +
-							                 $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-							                 $"[        Memory usage ][ {memUsed/128*100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
-							                 $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
-							                 $"[       CPU Frequency ][ {double.Parse(cpuFrequency)/1000:#0.00} GHz                ]\n" +
-							                 (temp.Length < 3 ? "" : (
-							                 $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
-							                 $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
-							                 $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
-							                 $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
-							                 $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
-							                 $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
-							                 $"[      Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
-							                 $"[  Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
-							                 $"[      Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
-							                 $"[  Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n";
-
-							int shardCount = 0;
-							StringBuilder shards = new StringBuilder();
-							if( this.Config.PrintShardsOnGuildId == server.GuildId )
-							{
-								GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
-								Shard globalCount = new Shard();
-								foreach( Shard shard in dbContext.Shards )
-								{
-									globalCount.ServerCount += shard.ServerCount;
-									globalCount.UserCount += shard.UserCount;
-									globalCount.MemoryUsed += shard.MemoryUsed;
-									globalCount.ThreadsActive += shard.ThreadsActive;
-									globalCount.MessagesTotal += shard.MessagesTotal;
-									globalCount.MessagesPerMinute += shard.MessagesPerMinute;
-									globalCount.OperationsRan += shard.OperationsRan;
-									globalCount.OperationsActive += shard.OperationsActive;
-									globalCount.Disconnects += shard.Disconnects;
-
-									shards.AppendLine(shard.GetShortStatsString());
-								}
-
-								this.IsValkOnline = dbContext.Shards.All(s => s.TimeStarted > DateTime.MinValue);
-								shardCount = dbContext.Shards.Count();
-
-								if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
-								{
-									this.LastShardCleanupTime = DateTime.UtcNow;
-									foreach( Shard shard in dbContext.Shards )
-									{
-										shard.TimeStarted = DateTime.MinValue;
-										shard.IsConnecting = false;
-									}
-									dbContext.SaveChanges();
-
-									this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $2}'");
-									this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
-									this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-									this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
-									this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
-									this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
-									this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
-									this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
-								}
-
-								message = message + $"[             Threads ][ {globalCount.ThreadsActive:#000}                     ]\n";
-								dbContext.Dispose();
-							}
-
-							message = message + "```\n";
-
-							if( this.Config.PrintShardsOnGuildId == server.GuildId )
-								message = message + $"**Shards: `{shardCount}`**\n\n{shards.ToString()}";
+							if( this.Config.PrintShardsOnGuildId == server.GuildId && !this.ShuttingDown )
+								message = message + shards.ToString();
 
 							try
 							{
@@ -224,12 +223,11 @@ namespace Valkyrja.service
 					}
 					catch(Exception exception)
 					{
-						LogException(exception, "--Update");
+						LogException(exception, "--Update: server loop");
 					}
 				}
 
-				TimeSpan deltaTime = DateTime.UtcNow - frameTime;
-				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - deltaTime).TotalMilliseconds)));
+				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
 			}
 		}
 
