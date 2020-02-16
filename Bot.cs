@@ -208,8 +208,8 @@ namespace Valkyrja.service
 								continue;
 							}
 
-							if( this.Config.PrintShardsOnGuildId == server.GuildId && !this.ShuttingDown )
-								message = message + shards.ToString();
+							if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
+								message += shards.ToString();
 
 							try
 							{
