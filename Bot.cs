@@ -208,12 +208,18 @@ namespace Valkyrja.service
 								continue;
 							}
 
+							string modifiedMessage = message;
+							Console.WriteLine("Animal does what?");
 							if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
-								message += shards.ToString();
+							{
+								Console.WriteLine("cow");
+								modifiedMessage += shards.ToString();
+								Console.WriteLine("moo");
+							}
 
 							try
 							{
-								await statusMessage.ModifyAsync(m => m.Content = message);
+								await statusMessage.ModifyAsync(m => m.Content = modifiedMessage);
 							}
 							catch( HttpException )
 							{
