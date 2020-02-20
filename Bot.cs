@@ -273,6 +273,7 @@ namespace Valkyrja.service
 		private async Task Restart()
 		{
 			//this.Client.Dispose(); //The discord client hangs.
+			await this.Client.StopAsync();
 			this.Client = null;
 			await Task.Delay(TimeSpan.FromMinutes(1));
 			this.Client = new DiscordSocketClient();
