@@ -260,17 +260,18 @@ namespace Valkyrja.service
 			}
 		}
 
-		private async Task ClientDisconnected(Exception exception)
+		private Task ClientDisconnected(Exception exception)
 		{
 			this.Monitoring.Disconnects.Inc();
 			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
-			await Restart();
+			Task.Run(async () => await Restart()); // Needs to run concurrently to not deadlock within - can't run client.StopAsync from within d.net event.
+			return Task.CompletedTask;
 		}
 
 		private async Task Restart()
 		{
-			//this.Client.Dispose(); //The discord client hangs.
-			await this.Client.StopAsync();
+			await Task.Delay(TimeSpan.FromMinutes(1));
+			this.Client.Dispose();
 			this.Client = null;
 			await Task.Delay(TimeSpan.FromMinutes(1));
 			this.Client = new DiscordSocketClient();
