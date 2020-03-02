@@ -271,9 +271,11 @@ namespace Valkyrja.service
 		private async Task Restart()
 		{
 			await Task.Delay(TimeSpan.FromMinutes(1));
+			Console.WriteLine($"Disposing of the Discord client");
 			this.Client.Dispose();
 			this.Client = null;
 			await Task.Delay(TimeSpan.FromMinutes(1));
+			Console.WriteLine($"Reconnecting...");
 			this.Client = new DiscordSocketClient();
 			SetEvents();
 			await Connect();
