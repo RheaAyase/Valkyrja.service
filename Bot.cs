@@ -33,6 +33,7 @@ namespace Valkyrja.service
 		private string DataRaidFailedDrives = "-1";
 		private bool ShuttingDown = false;
 		public bool IsValkOnline = true;
+		private int RestartCounter = 0;
 
 		public SkywinderClient()
 		{
@@ -260,19 +261,24 @@ namespace Valkyrja.service
 			}
 		}
 
-		private Task ClientDisconnected(Exception exception)
+		private async Task ClientDisconnected(Exception exception)
 		{
 			this.Monitoring.Disconnects.Inc();
 			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
-			Task.Run(async () => await Restart()); // Needs to run concurrently to not deadlock within - can't run client.StopAsync from within d.net event.
-			return Task.CompletedTask;
+			await Restart();
 		}
 
 		private async Task Restart()
 		{
+			if( ++this.RestartCounter > 30 )
+			{
+				Environment.Exit(0);
+				return;
+			}
+
 			await Task.Delay(TimeSpan.FromMinutes(1));
 			Console.WriteLine($"Disposing of the Discord client");
-			this.Client.Dispose();
+			//this.Client.Dispose(); //Locks up.
 			this.Client = null;
 			await Task.Delay(TimeSpan.FromMinutes(1));
 			Console.WriteLine($"Reconnecting...");
