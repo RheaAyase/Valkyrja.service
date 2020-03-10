@@ -201,27 +201,28 @@ namespace Valkyrja.service
 						if( (guild = this.Client.GetGuild(server.GuildId)) != null &&
 						    (statusChannel = guild.GetTextChannel(server.StatusChannelId)) != null )
 						{
-							if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
-							{
-								statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
-								this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
-								this.Config.Save();
-								continue;
-							}
-
-							string modifiedMessage = message;
-							if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
-							{
-								modifiedMessage += shards.ToString();
-							}
-
 							try
 							{
+								if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
+								{
+									statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
+									this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
+									this.Config.Save();
+									continue;
+								}
+
+								string modifiedMessage = message;
+								if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
+								{
+									modifiedMessage += shards.ToString();
+								}
+
 								await statusMessage.ModifyAsync(m => m.Content = modifiedMessage);
 							}
-							catch( HttpException )
+							catch(HttpException exception)
 							{
 								this.Monitoring.Error500s.Inc();
+								LogException(exception, "--Update: server loop - 500");
 							}
 						}
 					}
