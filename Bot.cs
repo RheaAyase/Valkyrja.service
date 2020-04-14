@@ -315,17 +315,30 @@ namespace Valkyrja.service
 		private async Task HandleCommands(SocketMessage socketMessage)
 		{
 			if( socketMessage.Content == null ||
-			    !this.Config.AdminIDs.Contains(socketMessage.Author.Id) ||
 			    string.IsNullOrWhiteSpace(this.Config.Prefix) ||
 			    !socketMessage.Content.StartsWith(this.Config.Prefix) )
 				return;
 
-			string commandString = "", trimmedMessage = "";
+			string response = "", commandString = "", trimmedMessage = "";
 			string[] parameters;
 			if( !string.IsNullOrWhiteSpace(this.Config.Prefix) && socketMessage.Content.StartsWith(this.Config.Prefix) )
 				GetCommandAndParams(socketMessage.Content, out commandString, out trimmedMessage, out parameters);
 
-			string response = "";
+			if( this.Config.AdminIDs2.Contains(socketMessage.Author.Id) && commandString == "serviceRestart" )
+			{
+				if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames2.Contains(trimmedMessage + ".service") )
+				{
+					response = "Invalid parameter - service name";
+				}
+				else
+				{
+					Console.WriteLine("Executing !serviceRestart " + trimmedMessage + " | " + socketMessage.Author.Id + " | " + socketMessage.Author.Username);
+					response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
+				}
+			}
+
+			if( !this.Config.AdminIDs.Contains(socketMessage.Author.Id) )
+				return;
 
 			try
 			{
