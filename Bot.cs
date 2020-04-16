@@ -324,58 +324,61 @@ namespace Valkyrja.service
 			if( !string.IsNullOrWhiteSpace(this.Config.Prefix) && socketMessage.Content.StartsWith(this.Config.Prefix) )
 				GetCommandAndParams(socketMessage.Content, out commandString, out trimmedMessage, out parameters);
 
-			if( this.Config.AdminIDs2.Contains(socketMessage.Author.Id) && commandString == "serviceRestart" )
+			try
 			{
-				if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames2.Contains(trimmedMessage + ".service") )
+				if( this.Config.AdminIDs2.Contains(socketMessage.Author.Id) && commandString == "serviceRestart" )
 				{
-					response = "Invalid parameter - service name";
+					if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames2.Contains(trimmedMessage + ".service") )
+					{
+						response = "Invalid parameter - service name";
+					}
+					else
+					{
+						Console.WriteLine("Executing !serviceRestart " + trimmedMessage + " | " + socketMessage.Author.Id + " | " + socketMessage.Author.Username);
+						response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
+					}
 				}
 				else
 				{
-					Console.WriteLine("Executing !serviceRestart " + trimmedMessage + " | " + socketMessage.Author.Id + " | " + socketMessage.Author.Username);
-					response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
-				}
-			}
 
-			if( !this.Config.AdminIDs.Contains(socketMessage.Author.Id) )
-				return;
-
-			try
-			{
-				switch(commandString) //TODO: Replace by Valk's command handling...
-				{
-					case "serviceStatus":
-						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
-						{
-							response = "Invalid parameter - service name";
-							break;
-						}
-
-						Console.WriteLine("Executing !serviceStatus "+ trimmedMessage +" | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
-						response = await Systemd.GetServiceStatus(trimmedMessage + ".service");
-						break;
-					case "serviceRestart":
-						if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
-						{
-							response = "Invalid parameter - service name";
-							break;
-						}
-
-						Console.WriteLine("Executing !serviceRestart "+ trimmedMessage +" | "+ socketMessage.Author.Id +" | "+ socketMessage.Author.Username);
-						response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
-						break;
-					case "maintenance":
-					case "shutdown":
-					case "poweroff":
-						this.ShuttingDown = true;
-						response = "State: `Down for Maintenance`";
-						break;
-					case "endMaintenance":
-						this.ShuttingDown = false;
-						response = "State: `Online`";
-						break;
-					default:
+					if( !this.Config.AdminIDs.Contains(socketMessage.Author.Id) )
 						return;
+
+					switch( commandString ) //TODO: Replace by Valk's command handling...
+					{
+						case "serviceStatus":
+							if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
+							{
+								response = "Invalid parameter - service name";
+								break;
+							}
+
+							Console.WriteLine("Executing !serviceStatus " + trimmedMessage + " | " + socketMessage.Author.Id + " | " + socketMessage.Author.Username);
+							response = await Systemd.GetServiceStatus(trimmedMessage + ".service");
+							break;
+						case "serviceRestart":
+							if( string.IsNullOrWhiteSpace(trimmedMessage) || !this.Config.ServiceNames.Contains(trimmedMessage + ".service") )
+							{
+								response = "Invalid parameter - service name";
+								break;
+							}
+
+							Console.WriteLine("Executing !serviceRestart " + trimmedMessage + " | " + socketMessage.Author.Id + " | " + socketMessage.Author.Username);
+							response = "Restart successful: `" + await Systemd.RestartService(trimmedMessage + ".service") + "`";
+							break;
+						case "maintenance":
+						case "shutdown":
+						case "poweroff":
+							this.ShuttingDown = true;
+							response = "State: `Down for Maintenance`";
+							break;
+						case "endMaintenance":
+							this.ShuttingDown = false;
+							response = "State: `Online`";
+							break;
+						default:
+							return;
+					}
 				}
 			}
 			catch( Exception e )
@@ -386,7 +389,6 @@ namespace Valkyrja.service
 
 			if( !string.IsNullOrWhiteSpace(response) )
 				await socketMessage.Channel.SendMessageAsync(response);
-
 		}
 
 		public string GetPrefix(guid serverId)
