@@ -31,6 +31,8 @@ namespace Valkyrja.service
 		private string RootRaidFailedDrives = "-1";
 		private string DataRaidSync = "-1";
 		private string DataRaidFailedDrives = "-1";
+		private string NvmeRaidSync = "-1";
+		private string NvmeRaidFailedDrives = "-1";
 		private bool ShuttingDown = false;
 		public bool IsValkOnline = true;
 		private int RestartCounter = 0;
@@ -67,169 +69,187 @@ namespace Valkyrja.service
 			{
 				DateTime frameTime = DateTime.UtcNow;
 
-				// Prep monitoring data
-				Ping pingCloudflare = new Ping();
-				Ping pingGoogle = new Ping();
-				Ping pingDiscord = new Ping();
-				Ping pingVmF1 = new Ping();
-				Ping pingVmR1 = new Ping();
-				Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
-				Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
-				Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
-				Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
-				Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
-				string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
-				MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
-
-				StringBuilder shards = new StringBuilder();
-				GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
-				foreach( Shard shard in dbContext.Shards )
-				{
-					shards.AppendLine(shard.GetShortStatsString());
-				}
-
-				this.IsValkOnline = dbContext.Shards.All(s => s.TimeStarted > DateTime.MinValue);
-
-				if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
-				{
-					this.LastShardCleanupTime = DateTime.UtcNow;
-					foreach( Shard shard in dbContext.Shards )
-					{
-						shard.TimeStarted = DateTime.MinValue;
-						shard.IsConnecting = false;
-					}
-
-					dbContext.SaveChanges();
-
-					this.RootRaidSync = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $2}'");
-					this.RootRaidFailedDrives = Bash.Run("lvs fedora_keyra -o 'lv_name,copy_percent,vg_missing_pv_count' | grep root | awk '{print $3}'");
-					this.DataRaidSync = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $2}'");
-					this.DataRaidFailedDrives = Bash.Run("lvs raid5 -o 'lv_name,copy_percent,vg_missing_pv_count' | grep raid5 | awk '{print $3}'");
-					this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
-					this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
-					this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
-					this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
-				}
-				dbContext.Dispose();
-
-				double cpuUtil = 0; //%
-				double memUsed = 0; //GB
-				double diskUtil = 0; //MB/s
-				double netUtil = 0; //Mbps
-				string[] temp = null;
-				string cpuFrequency = "";
-				long latencyCloudflare = 0;
-				long latencyGoogle = 0;
-				long latencyDiscord = 0;
-				long latencyVmF1 = 0;
-				long latencyVmR1 = 0;
-
 				try
 				{
-					cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
-					memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
-					diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
-					netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-					temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
-					cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
-					latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
-					latencyGoogle = (await pingReplyGoogle).RoundtripTime;
-					latencyDiscord = (await pingReplyDiscord).RoundtripTime;
-					latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
-					latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
+					// Prep monitoring data
+					Ping pingCloudflare = new Ping();
+					Ping pingGoogle = new Ping();
+					Ping pingDiscord = new Ping();
+					Ping pingVmF1 = new Ping();
+					Ping pingVmR1 = new Ping();
+					Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
+					Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
+					Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
+					Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
+					Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
+					string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
+					MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
+
+					StringBuilder shards = new StringBuilder();
+					GlobalContext dbContext = GlobalContext.Create(this.Config.GetDbConnectionString());
+					foreach( Shard shard in dbContext.Shards )
+					{
+						shards.AppendLine(shard.GetShortStatsString());
+					}
+
+					this.IsValkOnline = dbContext.Shards.All(s => s.TimeStarted > DateTime.MinValue);
+
+					if( DateTime.UtcNow - this.LastShardCleanupTime > TimeSpan.FromMinutes(3) )
+					{
+						this.LastShardCleanupTime = DateTime.UtcNow;
+						foreach( Shard shard in dbContext.Shards )
+						{
+							shard.TimeStarted = DateTime.MinValue;
+							shard.IsConnecting = false;
+						}
+
+						dbContext.SaveChanges();
+
+						Bash.Run("lvs -o 'lv_name,copy_percent,vg_missing_pv_count' > raidstatus");
+						this.RootRaidSync = Bash.Run("cat raidstatus | grep root | awk '{print $2}'");
+						this.RootRaidFailedDrives = Bash.Run("cat raidstatus | grep root | awk '{print $3}'");
+						this.DataRaidSync = Bash.Run("cat raidstatus | grep 'raid5\\s' | awk '{print $2}'");
+						this.DataRaidFailedDrives = Bash.Run("cat raidstatus | grep 'raid5\\s' | awk '{print $3}'");
+						this.NvmeRaidSync = Bash.Run("cat raidstatus | grep nvmeraid5 | awk '{print $2}'");
+						this.NvmeRaidFailedDrives = Bash.Run("cat raidstatus | grep nvmeraid5 | awk '{print $3}'");
+						this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
+						this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
+						this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
+						this.Monitoring.DataRaidFailedDrives.Set(double.Parse(this.DataRaidFailedDrives));
+						this.Monitoring.NvmeRaidSync.Set(double.Parse(this.NvmeRaidSync));
+						this.Monitoring.NvmeRaidFailedDrives.Set(double.Parse(this.NvmeRaidFailedDrives));
+					}
+
+					dbContext.Dispose();
+
+					double cpuUtil = 0; //%
+					double memUsed = 0; //GB
+					double diskUtil = 0; //MB/s
+					double netUtil = 0; //Mbps
+					string[] temp = null;
+					string cpuFrequency = "";
+					long latencyCloudflare = 0;
+					long latencyGoogle = 0;
+					long latencyDiscord = 0;
+					long latencyVmF1 = 0;
+					long latencyVmR1 = 0;
+
+					try
+					{
+						cpuUtil = 100 - double.Parse(pcpArray[0].Value); //%
+						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
+						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
+						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
+						temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
+						cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
+						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
+						latencyGoogle = (await pingReplyGoogle).RoundtripTime;
+						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+						latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
+						latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
+					}
+					catch( Exception exception )
+					{
+						LogException(exception, "--Update: Monitoring data");
+					}
+
+					this.Monitoring.CpuUtil.Set(cpuUtil);
+					this.Monitoring.MemUsed.Set(memUsed);
+					this.Monitoring.DiskUtil.Set(diskUtil);
+					this.Monitoring.NetUtil.Set(netUtil);
+					if( temp != null && temp.Length > 0 )
+					{
+						this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
+						this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+					}
+
+					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
+					this.Monitoring.LatencyGoogle.Set(latencyGoogle);
+					this.Monitoring.LatencyDiscord.Set(latencyDiscord);
+					this.Monitoring.VmFedora1.Set(latencyVmF1);
+					this.Monitoring.VmRhel1.Set(latencyVmR1);
+
+					if( this.Client == null ||
+					    this.Client.ConnectionState != ConnectionState.Connected ||
+					    this.Client.LoginState != LoginState.LoggedIn )
+					{
+						await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
+						continue;
+					}
+
+					string message = null;
+					if( this.ShuttingDown )
+						message = "Server Status: <https://status.valkyrja.app>\n" +
+						          $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+						          $"[              State ][ Down for Maintenance    ]```\n" +
+						          $"<:offwinder:438702031155494912>";
+					else
+						message = "Server Status: <https://status.valkyrja.app>\n" +
+						          $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
+						          $"[        Memory usage ][ {memUsed / 128 * 100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
+						          $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
+						          $"[       CPU Frequency ][ {double.Parse(cpuFrequency) / 1000:#0.00} GHz                ]\n" + (temp.Length < 3
+							          ? ""
+							          : (
+								          $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
+								          $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
+								          $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
+						          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
+						          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
+						          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
+						          $"[      Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
+						          $"[  Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
+						          $"[      Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
+						          $"[  Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n" +
+						          $"[      NVMe Raid Sync ][ {double.Parse(this.NvmeRaidSync):000.00} %                ]\n" +
+						          $"[  NVMe Raid Failures ][ {int.Parse(this.NvmeRaidFailedDrives):0}                       ]\n" +
+						          $"```\n";
+
+					foreach( Config.Server server in this.Config.Servers )
+					{
+						try
+						{
+							//Update
+							SocketGuild guild;
+							SocketTextChannel statusChannel;
+							RestUserMessage statusMessage;
+							if( (guild = this.Client.GetGuild(server.GuildId)) != null &&
+							    (statusChannel = guild.GetTextChannel(server.StatusChannelId)) != null )
+							{
+								try
+								{
+									if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage)await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
+									{
+										statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
+										this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
+										this.Config.Save();
+										continue;
+									}
+
+									string modifiedMessage = message;
+									if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
+									{
+										modifiedMessage += shards.ToString();
+									}
+
+									await statusMessage.ModifyAsync(m => m.Content = modifiedMessage);
+								}
+								catch( HttpException exception )
+								{
+									this.Monitoring.Error500s.Inc();
+									LogException(exception, "--Update: server loop - 500");
+								}
+							}
+						}
+						catch( Exception exception )
+						{
+							LogException(exception, "--Update: server loop");
+						}
+					}
 				}
 				catch( Exception exception )
 				{
-					LogException(exception, "--Update: Monitoring data");
-				}
-
-				this.Monitoring.CpuUtil.Set(cpuUtil);
-				this.Monitoring.MemUsed.Set(memUsed);
-				this.Monitoring.DiskUtil.Set(diskUtil);
-				this.Monitoring.NetUtil.Set(netUtil);
-				if( temp != null && temp.Length > 0 )
-				{
-					this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
-					this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
-				}
-				this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
-				this.Monitoring.LatencyGoogle.Set(latencyGoogle);
-				this.Monitoring.LatencyDiscord.Set(latencyDiscord);
-				this.Monitoring.VmFedora1.Set(latencyVmF1);
-				this.Monitoring.VmRhel1.Set(latencyVmR1);
-
-				if( this.Client == null ||
-					this.Client.ConnectionState != ConnectionState.Connected ||
-				    this.Client.LoginState != LoginState.LoggedIn )
-				{
-					await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
-					continue;
-				}
-
-				string message = null;
-				if( this.ShuttingDown )
-					message = "Server Status: <https://status.valkyrja.app>\n" +
-					          $"```md\n[        Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-					          $"[              State ][ Down for Maintenance    ]```\n" +
-					          $"<:offwinder:438702031155494912>";
-				else
-					message = "Server Status: <https://status.valkyrja.app>\n" +
-					          $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-					          $"[        Memory usage ][ {memUsed / 128 * 100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
-					          $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
-					          $"[       CPU Frequency ][ {double.Parse(cpuFrequency) / 1000:#0.00} GHz                ]\n" + (temp.Length < 3 ? "" : (
-							  $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
-							  $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
-							  $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
-					          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
-					          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
-					          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
-					          $"[      Root Raid Sync ][ {double.Parse(this.RootRaidSync):000.00} %                ]\n" +
-					          $"[  Root Raid Failures ][ {int.Parse(this.RootRaidFailedDrives):0}                       ]\n" +
-					          $"[      Data Raid Sync ][ {double.Parse(this.DataRaidSync):000.00} %                ]\n" +
-					          $"[  Data Raid Failures ][ {int.Parse(this.DataRaidFailedDrives):0}                       ]\n" +
-					          $"```\n";
-
-				foreach( Config.Server server in this.Config.Servers )
-				{
-					try
-					{
-						//Update
-						SocketGuild guild;
-						SocketTextChannel statusChannel;
-						RestUserMessage statusMessage;
-						if( (guild = this.Client.GetGuild(server.GuildId)) != null &&
-						    (statusChannel = guild.GetTextChannel(server.StatusChannelId)) != null )
-						{
-							try
-							{
-								if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage) await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
-								{
-									statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
-									this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
-									this.Config.Save();
-									continue;
-								}
-
-								string modifiedMessage = message;
-								if( !this.ShuttingDown && this.Config.PrintShardsOnGuildId == server.GuildId )
-								{
-									modifiedMessage += shards.ToString();
-								}
-
-								await statusMessage.ModifyAsync(m => m.Content = modifiedMessage);
-							}
-							catch(HttpException exception)
-							{
-								this.Monitoring.Error500s.Inc();
-								LogException(exception, "--Update: server loop - 500");
-							}
-						}
-					}
-					catch(Exception exception)
-					{
-						LogException(exception, "--Update: server loop");
-					}
+					LogException(exception, "Main Update");
 				}
 
 				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
