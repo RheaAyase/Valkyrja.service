@@ -285,8 +285,9 @@ namespace Valkyrja.service
 		private async Task ClientDisconnected(Exception exception)
 		{
 			this.Monitoring.Disconnects.Inc();
-			Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
-			await Restart();
+			Console.WriteLine($"Discord Client died:\n{  exception.Message}");
+			//Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
+			//await Restart();
 		}
 
 		private async Task Restart()
