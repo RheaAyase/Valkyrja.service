@@ -75,13 +75,13 @@ namespace Valkyrja.service
 					Ping pingCloudflare = new Ping();
 					Ping pingGoogle = new Ping();
 					Ping pingDiscord = new Ping();
-					Ping pingVmF1 = new Ping();
-					Ping pingVmR1 = new Ping();
+					//Ping pingVmF1 = new Ping();
+					//Ping pingVmR1 = new Ping();
 					Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
 					Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
 					Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
-					Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
-					Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
+					//Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
+					//Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
 					string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
 					MatchCollection pcpArray = this.RegexPcp.Matches(pcpRaw);
 
@@ -131,8 +131,8 @@ namespace Valkyrja.service
 					long latencyCloudflare = 0;
 					long latencyGoogle = 0;
 					long latencyDiscord = 0;
-					long latencyVmF1 = 0;
-					long latencyVmR1 = 0;
+					//long latencyVmF1 = 0;
+					//long latencyVmR1 = 0;
 
 					try
 					{
@@ -145,8 +145,8 @@ namespace Valkyrja.service
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 						latencyGoogle = (await pingReplyGoogle).RoundtripTime;
 						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
-						latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
-						latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
+						//latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
+						//latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
 					}
 					catch( Exception exception )
 					{
@@ -159,15 +159,15 @@ namespace Valkyrja.service
 					this.Monitoring.NetUtil.Set(netUtil);
 					if( temp != null && temp.Length > 0 )
 					{
-						this.Monitoring.CpuTemp.Set(double.Parse(temp[1].Trim('-', '+', '°', 'C')));
-						this.Monitoring.GpuTemp.Set(double.Parse(temp[0].Trim('-', '+', '°', 'C')));
+						this.Monitoring.CpuTemp.Set(double.Parse(temp[this.Config.CpuTempIndex].Trim('-', '+', '°', 'C')));
+						this.Monitoring.GpuTemp.Set(double.Parse(temp[this.Config.GpuTempIndex].Trim('-', '+', '°', 'C')));
 					}
 
 					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
 					this.Monitoring.LatencyGoogle.Set(latencyGoogle);
 					this.Monitoring.LatencyDiscord.Set(latencyDiscord);
-					this.Monitoring.VmFedora1.Set(latencyVmF1);
-					this.Monitoring.VmRhel1.Set(latencyVmR1);
+					//this.Monitoring.VmFedora1.Set(latencyVmF1);
+					//this.Monitoring.VmRhel1.Set(latencyVmR1);
 
 					if( this.Client == null ||
 					    this.Client.ConnectionState != ConnectionState.Connected ||
@@ -285,9 +285,14 @@ namespace Valkyrja.service
 		private async Task ClientDisconnected(Exception exception)
 		{
 			this.Monitoring.Disconnects.Inc();
-			Console.WriteLine($"Discord Client died:\n{  exception.Message}");
-			//Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
-			//await Restart();
+			if( exception.Message == "Server requested a reconnect" ||
+			    exception.Message == "Server missed last heartbeat" )
+				Console.WriteLine($"Discord Client died:\n{  exception.Message}");
+			else
+			{
+				Console.WriteLine($"Discord Client died:\n{  exception.Message}\nRestarting.");
+				await Restart();
+			}
 		}
 
 		private async Task Restart()
