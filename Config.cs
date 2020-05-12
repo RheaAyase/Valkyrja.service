@@ -38,6 +38,7 @@ namespace Valkyrja.service
 		public guid[] AdminIDs2 = { Rhea, 89777099576979456 }; // should not contain any IDs from AdminIDs
 		public string[] ServiceNames2 = { "valkyrja", "httpd" };
 		public Server[] Servers;
+		public bool CreateNewMessages = false;
 
 		private Config(){}
 		public static Config Load()

@@ -218,7 +218,7 @@ namespace Valkyrja.service
 							{
 								try
 								{
-									if( server.StatusMessageId == 0 || (statusMessage = (RestUserMessage)await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
+									if( this.Config.CreateNewMessages && server.StatusMessageId == 0 || (statusMessage = (RestUserMessage)await statusChannel.GetMessageAsync(server.StatusMessageId)) == null )
 									{
 										statusMessage = await statusChannel.SendMessageAsync("Loading status service...");
 										this.Config.Servers.First(s => s.GuildId == server.GuildId).StatusMessageId = statusMessage.Id;
