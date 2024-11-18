@@ -31,6 +31,8 @@ namespace Valkyrja.service
 		public string PrometheusEndpoint = "";
 		public string PrometheusJob = "";
 		public int CpuTempIndex;
+		public int Ccd1TempIndex;
+		public int Ccd2TempIndex;
 		public int GpuTempIndex;
 		public guid PrintShardsOnGuildId;
 		public guid[] AdminIDs = { Rhea, 89777099576979456 };

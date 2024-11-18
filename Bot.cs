@@ -140,7 +140,7 @@ namespace Valkyrja.service
 						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-						temp = Bash.Run("sensors | egrep '(temp1|Tdie|Tctl)' | awk '{print $2}'").Split('\n');
+						temp = Bash.Run("sensors | egrep '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
 						cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 						latencyGoogle = (await pingReplyGoogle).RoundtripTime;
@@ -191,9 +191,10 @@ namespace Valkyrja.service
 						          $"[       CPU Frequency ][ {double.Parse(cpuFrequency) / 1000:#0.00} GHz                ]\n" + (temp.Length < 3
 							          ? ""
 							          : (
-								          $"[       CPU Tdie Temp ][ {temp[1]}                 ]\n" +
-								          $"[       CPU Tctl Temp ][ {temp[2]}                 ]\n" +
-								          $"[            GPU Temp ][ {temp[0]}                 ]\n")) +
+								          $"[       CPU Tctl Temp ][ {temp[this.Config.CpuTempIndex]}                 ]\n" +
+								          $"[      CPU Tccd1 Temp ][ {temp[this.Config.Ccd1TempIndex]}                 ]\n" +
+								          $"[      CPU Tccd2 Temp ][ {temp[this.Config.Ccd2TempIndex]}                 ]\n" +
+								          $"[            GPU Temp ][ {temp[this.Config.GpuTempIndex]}                 ]\n")) +
 						          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
 						          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
 						          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
