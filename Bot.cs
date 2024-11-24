@@ -73,12 +73,12 @@ namespace Valkyrja.service
 				{
 					// Prep monitoring data
 					Ping pingCloudflare = new Ping();
-					Ping pingGoogle = new Ping();
+					Ping pingGoogle = new Ping(); //Not-a-google-anymore
 					Ping pingDiscord = new Ping();
 					//Ping pingVmF1 = new Ping();
 					//Ping pingVmR1 = new Ping();
 					Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
-					Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("8.8.8.8", 1000);
+					Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("4.2.2.4", 1000); //Not-a-google-anymore
 					Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
 					//Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
 					//Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
@@ -129,7 +129,7 @@ namespace Valkyrja.service
 					string[] temp = null;
 					string cpuFrequency = "";
 					long latencyCloudflare = 0;
-					long latencyGoogle = 0;
+					long latencyGoogle = 0; //Not-a-google-anymore
 					long latencyDiscord = 0;
 					//long latencyVmF1 = 0;
 					//long latencyVmR1 = 0;
@@ -143,7 +143,7 @@ namespace Valkyrja.service
 						temp = Bash.Run("sensors | egrep '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
 						cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
-						latencyGoogle = (await pingReplyGoogle).RoundtripTime;
+						latencyGoogle = (await pingReplyGoogle).RoundtripTime; //Not-a-google-anymore
 						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
 						//latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
 						//latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
@@ -164,7 +164,7 @@ namespace Valkyrja.service
 					}
 
 					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
-					this.Monitoring.LatencyGoogle.Set(latencyGoogle);
+					this.Monitoring.LatencyGoogle.Set(latencyGoogle); //Not-a-google-anymore
 					this.Monitoring.LatencyDiscord.Set(latencyDiscord);
 					//this.Monitoring.VmFedora1.Set(latencyVmF1);
 					//this.Monitoring.VmRhel1.Set(latencyVmR1);
