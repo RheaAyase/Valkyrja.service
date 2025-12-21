@@ -140,7 +140,7 @@ namespace Valkyrja.service
 						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-						temp = Bash.Run("sensors | egrep '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
+						temp = Bash.Run("sensors | grep -E '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
 						cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 						latencyGoogle = (await pingReplyGoogle).RoundtripTime; //Not-a-google-anymore
