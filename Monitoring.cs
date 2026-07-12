@@ -15,6 +15,7 @@ namespace Valkyrja.service
 		public readonly Gauge NetUtil = Metrics.CreateGauge("hw_net_util", "Server: Network utilization in Mbps");
 		public readonly Gauge CpuTemp = Metrics.CreateGauge("hw_cpu_temp", "Server: CPU Temperature in degrees Celsius");
 		public readonly Gauge GpuTemp = Metrics.CreateGauge("hw_gpu_temp", "Server: GPU Temperature in degrees Celsius");
+		public readonly Gauge VramUsed = Metrics.CreateGauge("hw_vram_used", "Server: Used VRAM in MiB");
 		public readonly Gauge LatencyCloudflare = Metrics.CreateGauge("hw_net_latency_cloudflare", "Server: Network latency to Cloudflare");
 		public readonly Gauge LatencyGoogle = Metrics.CreateGauge("hw_net_latency_google", "Server: Network latency to Google");
 		public readonly Gauge LatencyDiscord = Metrics.CreateGauge("hw_net_latency_discord", "Server: Network latency to Discord");

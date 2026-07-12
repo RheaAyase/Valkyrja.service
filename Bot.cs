@@ -126,7 +126,9 @@ namespace Valkyrja.service
 					double memUsed = 0; //GB
 					double diskUtil = 0; //MB/s
 					double netUtil = 0; //Mbps
-					string[] temp = null;
+					string cpuTemp = null;
+					string gpuTemp = null;
+					string vramUsed = null;
 					string cpuFrequency = "";
 					long latencyCloudflare = 0;
 					long latencyGoogle = 0; //Not-a-google-anymore
@@ -140,8 +142,9 @@ namespace Valkyrja.service
 						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
-						temp = Bash.Run("sensors | grep -E '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
-						cpuFrequency = Bash.Run("grep MHz /proc/cpuinfo | awk '{ f = 0; if( $4 > f ) f = $4; } END { print f; }'");
+						cpuTemp = Bash.Run("sensors | grep -e 'Tctl' | awk '{print $2}' | grep -oP '\\d\\d'");
+						gpuTemp = Bash.Run("nvidia-smi | grep -oP '\\d\\dC' | grep -oP '\\d\\d'");
+						vramUsed = Bash.Run("nvidia-smi | grep -oP '\\d+(?=MiB\\s*/)'");
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 						latencyGoogle = (await pingReplyGoogle).RoundtripTime; //Not-a-google-anymore
 						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
@@ -157,10 +160,17 @@ namespace Valkyrja.service
 					this.Monitoring.MemUsed.Set(memUsed);
 					this.Monitoring.DiskUtil.Set(diskUtil);
 					this.Monitoring.NetUtil.Set(netUtil);
-					if( temp != null && temp.Length > 0 )
+					if( !string.IsNullOrEmpty(cpuTemp) )
 					{
-						this.Monitoring.CpuTemp.Set(double.Parse(temp[this.Config.CpuTempIndex].Trim('-', '+', '°', 'C')));
-						this.Monitoring.GpuTemp.Set(double.Parse(temp[this.Config.GpuTempIndex].Trim('-', '+', '°', 'C')));
+						this.Monitoring.CpuTemp.Set(double.Parse(cpuTemp));
+					}
+					if( !string.IsNullOrEmpty(gpuTemp) )
+					{
+						this.Monitoring.GpuTemp.Set(double.Parse(gpuTemp));
+					}
+					if( !string.IsNullOrEmpty(vramUsed) )
+					{
+						this.Monitoring.VramUsed.Set(double.Parse(vramUsed));
 					}
 
 					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
