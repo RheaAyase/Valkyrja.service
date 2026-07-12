@@ -206,7 +206,7 @@ namespace Valkyrja.service
 								          $"[       CPU Tctl Temp ][ {temp[this.Config.CpuTempIndex]}                 ]\n" +
 								          $"[      CPU Tccd1 Temp ][ {temp[this.Config.Ccd1TempIndex]}                 ]\n" +
 								          $"[      CPU Tccd2 Temp ][ {temp[this.Config.Ccd2TempIndex]}                 ]\n")) +
-								      $"[          Tesla Temp ][ {gpuTemp:#00.0}°C                ]\n" +
+								      $"[          Tesla Temp ][ +{gpuTemp:#00.0}°C                 ]\n" +
 						          $"[          Tesla VRAM ][ {vramUsed / 16384.0f * 100:#00.00}% ({vramUsed/1024.0f:#00.00}/16GB)     ]\n" +
 						          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
 						          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
