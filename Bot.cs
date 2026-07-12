@@ -124,13 +124,13 @@ namespace Valkyrja.service
 
 					string[] temp = null;
 					double cpuUtil = 0; //%
+					double gpuUtil = 0; //%
 					double memUsed = 0; //GB
 					double vramUsed = 0;
 					double diskUtil = 0; //MB/s
 					double netUtil = 0; //Mbps
-					string cpuTemp = null;
-					string gpuTemp = null;
-					string cpuFrequency = "";
+					double cpuTemp = 0;
+					double gpuTemp = 0;
 					long latencyCloudflare = 0;
 					long latencyGoogle = 0; //Not-a-google-anymore
 					long latencyDiscord = 0;
@@ -144,8 +144,15 @@ namespace Valkyrja.service
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
 						temp = Bash.Run("sensors | grep -E '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
-						cpuTemp = Bash.Run("sensors | grep -e 'Tctl' | awk '{print $2}' | grep -oP '\\d\\d'");
-						gpuTemp = Bash.Run("nvidia-smi | grep -oP '\\d\\dC' | grep -oP '\\d\\d'");
+						string cpuTempString = Bash.Run("sensors | grep -e 'Tctl' | awk '{print $2}' | grep -oP '\\d\\d'");
+						if( !string.IsNullOrEmpty(cpuTempString) )
+							cpuTemp = double.Parse(cpuTempString);
+						string gpuTempString = Bash.Run("nvidia-smi | grep -oP '\\d\\dC' | grep -oP '\\d\\d'");
+						if( !string.IsNullOrEmpty(gpuTempString) )
+							gpuTemp = double.Parse(gpuTempString);
+						string gpuUtilString = Bash.Run("nvidia-smi | grep -oP '\\d+(?=%)'");
+						if( !string.IsNullOrEmpty(gpuUtilString) )
+							gpuUtil = double.Parse(gpuUtilString);
 						string vramUsedString = Bash.Run("nvidia-smi | grep -oP '\\d+(?=MiB\\s*/)'");
 						if( !string.IsNullOrEmpty(vramUsedString) )
 							vramUsed = double.Parse(vramUsedString);
@@ -161,18 +168,13 @@ namespace Valkyrja.service
 					}
 
 					this.Monitoring.CpuUtil.Set(cpuUtil);
+					this.Monitoring.GpuUtil.Set(gpuUtil);
 					this.Monitoring.MemUsed.Set(memUsed);
 					this.Monitoring.DiskUtil.Set(diskUtil);
 					this.Monitoring.NetUtil.Set(netUtil);
 					this.Monitoring.VramUsed.Set(vramUsed);
-					if( !string.IsNullOrEmpty(cpuTemp) )
-					{
-						this.Monitoring.CpuTemp.Set(double.Parse(cpuTemp));
-					}
-					if( !string.IsNullOrEmpty(gpuTemp) )
-					{
-						this.Monitoring.GpuTemp.Set(double.Parse(gpuTemp));
-					}
+					this.Monitoring.CpuTemp.Set(cpuTemp);
+					this.Monitoring.GpuTemp.Set(gpuTemp);
 
 					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
 					this.Monitoring.LatencyGoogle.Set(latencyGoogle); //Not-a-google-anymore
@@ -197,16 +199,15 @@ namespace Valkyrja.service
 					else
 						message = "Server Status: <https://status.valkyrja.app>\n" +
 						          $"```md\n[         Last update ][ {Utils.GetTimestamp(DateTime.UtcNow)} ]\n" +
-						          $"[        Memory usage ][ {memUsed / 128 * 100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
-						          $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" +
-						          $"[       CPU Frequency ][ {double.Parse(cpuFrequency) / 1000:#0.00} GHz                ]\n" + (temp.Length < 3
+						          $"[        Memory usage ][ {memUsed / 128.0f * 100:#00.00} % ({memUsed:000.00}/128 GB) ]\n" +
+						          $"[     CPU utilization ][ {(cpuUtil):#00.00} %                 ]\n" + (temp.Length < 3
 							          ? ""
 							          : (
 								          $"[       CPU Tctl Temp ][ {temp[this.Config.CpuTempIndex]}                 ]\n" +
 								          $"[      CPU Tccd1 Temp ][ {temp[this.Config.Ccd1TempIndex]}                 ]\n" +
 								          $"[      CPU Tccd2 Temp ][ {temp[this.Config.Ccd2TempIndex]}                 ]\n")) +
-								      $"[          Tesla Temp ][ {gpuTemp:#00.0}°C                 ]\n" +
-						          $"[          Tesla VRAM ][ {vramUsed/16384.0f:#00.00}% ({vramUsed/1024.0f:#00.00}/16GB)     ]\n" +
+								      $"[          Tesla Temp ][ {gpuTemp:#00.0}°C                ]\n" +
+						          $"[          Tesla VRAM ][ {vramUsed / 16384.0f * 100:#00.00}% ({vramUsed/1024.0f:#00.00}/16GB)     ]\n" +
 						          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
 						          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
 						          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +

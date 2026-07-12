@@ -10,6 +10,7 @@ namespace Valkyrja.service
 		//public readonly Gauge VmFedora1 = Metrics.CreateGauge("vm_fedora1", "KVM: Fedora guest 1");
 		//public readonly Gauge VmRhel1 = Metrics.CreateGauge("vm_rhel1", "KVM: RHEL guest 1");
 		public readonly Gauge CpuUtil = Metrics.CreateGauge("hw_cpu_util", "Server: CPU Utilization in %");
+		public readonly Gauge GpuUtil = Metrics.CreateGauge("hw_gpu_util", "Server: GPU Utilization in %");
 		public readonly Gauge MemUsed = Metrics.CreateGauge("hw_mem_used", "Server: Used memory in GiB");
 		public readonly Gauge DiskUtil = Metrics.CreateGauge("hw_disk_util", "Server: Disk utilization in MB/s");
 		public readonly Gauge NetUtil = Metrics.CreateGauge("hw_net_util", "Server: Network utilization in Mbps");
