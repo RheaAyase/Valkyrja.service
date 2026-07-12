@@ -122,13 +122,14 @@ namespace Valkyrja.service
 
 					dbContext.Dispose();
 
+					string[] temp = null;
 					double cpuUtil = 0; //%
 					double memUsed = 0; //GB
+					double vramUsed = 0;
 					double diskUtil = 0; //MB/s
 					double netUtil = 0; //Mbps
 					string cpuTemp = null;
 					string gpuTemp = null;
-					string vramUsed = null;
 					string cpuFrequency = "";
 					long latencyCloudflare = 0;
 					long latencyGoogle = 0; //Not-a-google-anymore
@@ -142,9 +143,12 @@ namespace Valkyrja.service
 						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
 						netUtil = double.Parse(pcpArray[14].Value) * 8 / 1048576; //Mbps
+						temp = Bash.Run("sensors | grep -E '(Tctl|Tccd1|Tccd2|temp1)' | awk '{print $2}'").Split('\n');
 						cpuTemp = Bash.Run("sensors | grep -e 'Tctl' | awk '{print $2}' | grep -oP '\\d\\d'");
 						gpuTemp = Bash.Run("nvidia-smi | grep -oP '\\d\\dC' | grep -oP '\\d\\d'");
-						vramUsed = Bash.Run("nvidia-smi | grep -oP '\\d+(?=MiB\\s*/)'");
+						string vramUsedString = Bash.Run("nvidia-smi | grep -oP '\\d+(?=MiB\\s*/)'");
+						if( !string.IsNullOrEmpty(vramUsedString) )
+							vramUsed = double.Parse(vramUsedString);
 						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
 						latencyGoogle = (await pingReplyGoogle).RoundtripTime; //Not-a-google-anymore
 						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
@@ -160,6 +164,7 @@ namespace Valkyrja.service
 					this.Monitoring.MemUsed.Set(memUsed);
 					this.Monitoring.DiskUtil.Set(diskUtil);
 					this.Monitoring.NetUtil.Set(netUtil);
+					this.Monitoring.VramUsed.Set(vramUsed);
 					if( !string.IsNullOrEmpty(cpuTemp) )
 					{
 						this.Monitoring.CpuTemp.Set(double.Parse(cpuTemp));
@@ -167,10 +172,6 @@ namespace Valkyrja.service
 					if( !string.IsNullOrEmpty(gpuTemp) )
 					{
 						this.Monitoring.GpuTemp.Set(double.Parse(gpuTemp));
-					}
-					if( !string.IsNullOrEmpty(vramUsed) )
-					{
-						this.Monitoring.VramUsed.Set(double.Parse(vramUsed));
 					}
 
 					this.Monitoring.LatencyCloudflare.Set(latencyCloudflare);
@@ -203,8 +204,9 @@ namespace Valkyrja.service
 							          : (
 								          $"[       CPU Tctl Temp ][ {temp[this.Config.CpuTempIndex]}                 ]\n" +
 								          $"[      CPU Tccd1 Temp ][ {temp[this.Config.Ccd1TempIndex]}                 ]\n" +
-								          $"[      CPU Tccd2 Temp ][ {temp[this.Config.Ccd2TempIndex]}                 ]\n" +
-								          $"[            GPU Temp ][ {temp[this.Config.GpuTempIndex]}                 ]\n")) +
+								          $"[      CPU Tccd2 Temp ][ {temp[this.Config.Ccd2TempIndex]}                 ]\n")) +
+								      $"[          Tesla Temp ][ {gpuTemp:#00.0}°C                 ]\n" +
+						          $"[          Tesla VRAM ][ {vramUsed/16384.0f:#00.00}% ({vramUsed/1024.0f:#00.00}/16GB)     ]\n" +
 						          $"[    Disk utilization ][ {diskUtil:#000.00} MB/s             ]\n" +
 						          $"[ Network utilization ][ {netUtil:#000.00} Mbps             ]\n" +
 						          $"[  CF Network latency ][ {latencyCloudflare:#0} ms                  {(latencyCloudflare < 10 ? "  " : latencyCloudflare < 100 ? " " : "")}]\n" +
