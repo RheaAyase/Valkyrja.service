@@ -139,7 +139,7 @@ namespace Valkyrja.service
 
 					try
 					{
-						string cpuUtilString = Bash.Run("{ head -1 /proc/stat; sleep 5; head -1 /proc/stat; } | awk '{i=$5; t=0; for(k=2;k<=9;k++) t+=$k} NR==1{i0=i;t0=t} NR==2{printf \"%.1f%%\n\", 100*(1-(i-i0)/(t-t0))}'");
+						string cpuUtilString = Bash.Run("{ head -1 /proc/stat; sleep 5; head -1 /proc/stat; } | awk '{i=$5; t=0; for(k=2;k<=9;k++) t+=$k} NR==1{i0=i;t0=t} NR==2{printf \"%.1f%%\\n\", 100*(1-(i-i0)/(t-t0))}'");
 						cpuUtil = double.Parse(cpuUtilString.TrimEnd('%')); //%
 						memUsed = 128 - double.Parse(pcpArray[1].Value) / 1048576; //GB
 						diskUtil = (double.Parse(pcpArray[2].Value) + double.Parse(pcpArray[3].Value) + double.Parse(pcpArray[4].Value) + double.Parse(pcpArray[5].Value) + double.Parse(pcpArray[6].Value) + double.Parse(pcpArray[7].Value) + double.Parse(pcpArray[8].Value)) / 1024; //MB/s
