@@ -108,16 +108,17 @@ namespace Valkyrja.service
 							foreach (var lv in report.GetProperty("lv").EnumerateArray())
 								lvs.TryAdd(lv.GetProperty("lv_name").GetString()!, lv.Clone());
 						}
+						Console.WriteLine(json);
 
 						(string Sync, string Failed) Status(string name) =>
 							lvs.TryGetValue(name, out var lv)
 								? (lv.GetProperty("copy_percent").GetString() ?? "",
 									 lv.GetProperty("vg_missing_pv_count").GetString() ?? "")
-								: ("", "");
+								: ("-1", "-1");
 
 						(this.RootRaidSync, this.RootRaidFailedDrives) = Status("root");
 						(this.DataRaidSync, this.DataRaidFailedDrives) = Status("raid5");
-						(this.NvmeRaidSync, this.NvmeRaidFailedDrives) = Status("nvmeraid5");
+						(this.NvmeRaidSync, this.NvmeRaidFailedDrives) = Status("nvmeraid5lv");
 						this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
 						this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
 						this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
