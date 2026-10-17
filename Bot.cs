@@ -2,7 +2,9 @@
 using System.Linq;
 using System.Net.NetworkInformation;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Discord;
@@ -72,14 +74,6 @@ namespace Valkyrja.service
 				try
 				{
 					// Prep monitoring data
-					Ping pingCloudflare = new Ping();
-					Ping pingGoogle = new Ping(); //Not-a-google-anymore
-					Ping pingDiscord = new Ping();
-					//Ping pingVmF1 = new Ping();
-					//Ping pingVmR1 = new Ping();
-					Task<PingReply> pingReplyCloudflare = pingCloudflare.SendPingAsync("1.1.1.1", 1000);
-					Task<PingReply> pingReplyGoogle = pingGoogle.SendPingAsync("4.2.2.4", 1000); //Not-a-google-anymore
-					Task<PingReply> pingReplyDiscord = pingDiscord.SendPingAsync("gateway.discord.gg", 1000);
 					//Task<PingReply> pingReplyVmF1 = pingVmF1.SendPingAsync("192.168.122.11", 1000);
 					//Task<PingReply> pingReplyVmR1 = pingVmR1.SendPingAsync("192.168.122.21", 1000);
 					string pcpRaw = Bash.Run("pmrep -s 2 kernel.cpu.util.idle mem.util.available disk.dev.total_bytes network.interface.total.bytes | tail -n 1");
@@ -105,13 +99,25 @@ namespace Valkyrja.service
 
 						dbContext.SaveChanges();
 
-						Bash.Run("lvs -o 'lv_name,copy_percent,vg_missing_pv_count' > raidstatus");
-						this.RootRaidSync = Bash.Run("cat raidstatus | grep root | awk '{print $2}'");
-						this.RootRaidFailedDrives = Bash.Run("cat raidstatus | grep root | awk '{print $3}'");
-						this.DataRaidSync = Bash.Run("cat raidstatus | grep 'raid5\\s' | awk '{print $2}'");
-						this.DataRaidFailedDrives = Bash.Run("cat raidstatus | grep 'raid5\\s' | awk '{print $3}'");
-						this.NvmeRaidSync = Bash.Run("cat raidstatus | grep nvmeraid5 | awk '{print $2}'");
-						this.NvmeRaidFailedDrives = Bash.Run("cat raidstatus | grep nvmeraid5 | awk '{print $3}'");
+						string json = Bash.Run("lvs --reportformat json -o lv_name,copy_percent,vg_missing_pv_count");
+
+						var lvs = new Dictionary<string, JsonElement>();
+						using (var doc = JsonDocument.Parse(json))
+						{
+							foreach (var report in doc.RootElement.GetProperty("report").EnumerateArray())
+							foreach (var lv in report.GetProperty("lv").EnumerateArray())
+								lvs.TryAdd(lv.GetProperty("lv_name").GetString()!, lv.Clone());
+						}
+
+						(string Sync, string Failed) Status(string name) =>
+							lvs.TryGetValue(name, out var lv)
+								? (lv.GetProperty("copy_percent").GetString() ?? "",
+									 lv.GetProperty("vg_missing_pv_count").GetString() ?? "")
+								: ("", "");
+
+						(this.RootRaidSync, this.RootRaidFailedDrives) = Status("root");
+						(this.DataRaidSync, this.DataRaidFailedDrives) = Status("raid5");
+						(this.NvmeRaidSync, this.NvmeRaidFailedDrives) = Status("nvmeraid5");
 						this.Monitoring.RootRaidSync.Set(double.Parse(this.RootRaidSync));
 						this.Monitoring.RootRaidFailedDrives.Set(double.Parse(this.RootRaidFailedDrives));
 						this.Monitoring.DataRaidSync.Set(double.Parse(this.DataRaidSync));
@@ -131,9 +137,9 @@ namespace Valkyrja.service
 					double netUtil = 0; //Mbps
 					double cpuTemp = 0;
 					double gpuTemp = 0;
-					long latencyCloudflare = 0;
-					long latencyGoogle = 0; //Not-a-google-anymore
-					long latencyDiscord = 0;
+					double latencyCloudflare = 0;
+					double latencyGoogle = 0; //Not-a-google-anymore
+					double latencyDiscord = 0;
 					//long latencyVmF1 = 0;
 					//long latencyVmR1 = 0;
 
@@ -157,9 +163,10 @@ namespace Valkyrja.service
 						string vramUsedString = Bash.Run("nvidia-smi | grep -oP '\\d+(?=MiB\\s*/)'");
 						if( !string.IsNullOrEmpty(vramUsedString) )
 							vramUsed = double.Parse(vramUsedString);
-						latencyCloudflare = (await pingReplyCloudflare).RoundtripTime;
-						latencyGoogle = (await pingReplyGoogle).RoundtripTime; //Not-a-google-anymore
-						latencyDiscord = (await pingReplyDiscord).RoundtripTime;
+						string latencyCloudflareString = Bash.Run("ping -nc 1 1.1.1.1 | grep time= | awk '{ print $7 }'");
+						latencyCloudflare = this.PingMs("1.1.1.1");
+						latencyGoogle = this.PingMs("4.2.2.4");
+						latencyDiscord = this.PingMs("gateway.discord.gg");
 						//latencyVmF1 = (await pingReplyVmF1).RoundtripTime;
 						//latencyVmR1 = (await pingReplyVmR1).RoundtripTime;
 					}
@@ -269,6 +276,13 @@ namespace Valkyrja.service
 
 				await Task.Delay(TimeSpan.FromMilliseconds(Math.Max(1, (TimeSpan.FromSeconds(1f / this.Config.TargetFps) - (DateTime.UtcNow - frameTime)).TotalMilliseconds)));
 			}
+		}
+
+		private double PingMs(string host)
+		{
+			string output = Bash.Run($"LC_ALL=C ping -n -c 1 -W 1 {host}");
+			Match m = Regex.Match(output ?? "", @"time=([\d.]+)");
+			return m.Success ? double.Parse(m.Groups[1].Value) : 0f;
 		}
 
 		private void GetCommandAndParams(string message, out string command, out string trimmedMessage, out string[] parameters)
