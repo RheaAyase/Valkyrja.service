@@ -108,7 +108,6 @@ namespace Valkyrja.service
 							foreach (var lv in report.GetProperty("lv").EnumerateArray())
 								lvs.TryAdd(lv.GetProperty("lv_name").GetString()!, lv.Clone());
 						}
-						Console.WriteLine(json);
 
 						(string Sync, string Failed) Status(string name) =>
 							lvs.TryGetValue(name, out var lv)
